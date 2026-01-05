@@ -1,8 +1,9 @@
 import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+	Injectable,
+	NotFoundException,
+	BadRequestException,
+	Logger,
+} from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Member } from '../../entities/member.entity';
@@ -17,14 +18,16 @@ import { ErrorCodes } from '../../common/utils/error-codes';
 
 @Injectable()
 export class MembersService {
-  constructor(
-    @InjectRepository(Member)
-    private memberRepository: Repository<Member>,
-    @InjectRepository(Membership)
-    private membershipRepository: Repository<Membership>,
-    @InjectRepository(PTUsage)
-    private ptUsageRepository: Repository<PTUsage>,
-  ) {}
+	private readonly logger = new Logger(MembersService.name);
+
+	constructor(
+		@InjectRepository(Member)
+		private memberRepository: Repository<Member>,
+		@InjectRepository(Membership)
+		private membershipRepository: Repository<Membership>,
+		@InjectRepository(PTUsage)
+		private ptUsageRepository: Repository<PTUsage>,
+	) {}
 
   async findAll(): Promise<Member[]> {
     return this.memberRepository.find({
@@ -39,9 +42,10 @@ export class MembersService {
       relations: ['memberships', 'ptUsages', 'assessments', 'injuries'],
     });
 
-    if (!member) {
-      throw new NotFoundException('회원을 찾을 수 없습니다.');
-    }
+		if (!member) {
+			this.logger.warn(`회원을 찾을 수 없습니다. ID: ${id}`);
+			throw new NotFoundException("회원을 찾을 수 없습니다.");
+		}
 
     return member;
   }
@@ -51,9 +55,12 @@ export class MembersService {
       where: { email: createMemberDto.email },
     });
 
-    if (existingMember) {
-      throw new BadRequestException('이미 등록된 이메일입니다.');
-    }
+		if (existingMember) {
+			this.logger.warn(
+				`이미 등록된 이메일입니다. Email: ${createMemberDto.email}`,
+			);
+			throw new BadRequestException("이미 등록된 이메일입니다.");
+		}
 
     const member = this.memberRepository.create({
       ...createMemberDto,
@@ -110,9 +117,12 @@ export class MembersService {
       where: { id: membershipId, memberId },
     });
 
-    if (!membership) {
-      throw new NotFoundException('회원권을 찾을 수 없습니다.');
-    }
+		if (!membership) {
+			this.logger.warn(
+				`회원권을 찾을 수 없습니다. MemberId: ${memberId}, MembershipId: ${membershipId}`,
+			);
+			throw new NotFoundException("회원권을 찾을 수 없습니다.");
+		}
 
     Object.assign(membership, updateData);
     if (updateData.purchaseDate) {
@@ -164,6 +174,9 @@ export class MembersService {
 		});
 
 		if (!membership) {
+			this.logger.warn(
+				`회원권을 찾을 수 없습니다. MemberId: ${memberId}, MembershipId: ${membershipId}`,
+			);
 			throw new NotFoundException("회원권을 찾을 수 없습니다.");
 		}
 

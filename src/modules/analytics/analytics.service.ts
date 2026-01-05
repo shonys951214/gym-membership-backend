@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AbilitySnapshot } from '../../entities/ability-snapshot.entity';
@@ -6,12 +6,14 @@ import { Member } from '../../entities/member.entity';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(
-    @InjectRepository(AbilitySnapshot)
-    private abilitySnapshotRepository: Repository<AbilitySnapshot>,
-    @InjectRepository(Member)
-    private memberRepository: Repository<Member>,
-  ) {}
+	private readonly logger = new Logger(AnalyticsService.name);
+
+	constructor(
+		@InjectRepository(AbilitySnapshot)
+		private abilitySnapshotRepository: Repository<AbilitySnapshot>,
+		@InjectRepository(Member)
+		private memberRepository: Repository<Member>,
+	) {}
 
   /**
    * 전체 회원 평균 능력치 계산
@@ -108,9 +110,12 @@ export class AnalyticsService {
       order: { assessedAt: 'DESC' },
     });
 
-    if (!memberSnapshot) {
-      throw new NotFoundException('회원의 능력치 스냅샷을 찾을 수 없습니다.');
-    }
+		if (!memberSnapshot) {
+			this.logger.warn(
+				`회원의 능력치 스냅샷을 찾을 수 없습니다. MemberId: ${memberId}`,
+			);
+			throw new NotFoundException("회원의 능력치 스냅샷을 찾을 수 없습니다.");
+		}
 
     const averages = await this.getAverages();
 

@@ -1,14 +1,16 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
+	Controller,
+	Get,
+	Post,
+	Put,
+	Delete,
+	Body,
+	Param,
+	UseGuards,
+	Query,
+	HttpCode,
+	HttpStatus,
+} from "@nestjs/common";
 import { MembersService } from './members.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
@@ -39,13 +41,14 @@ export class MembersController {
     return ApiResponseHelper.success(member, '회원 정보 조회 성공');
   }
 
-  @Post()
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.TRAINER)
-  async create(@Body() createMemberDto: CreateMemberDto) {
-    const member = await this.membersService.create(createMemberDto);
-    return ApiResponseHelper.success(member, '회원 등록 성공');
-  }
+	@Post()
+	@HttpCode(HttpStatus.CREATED)
+	@UseGuards(RolesGuard)
+	@Roles(Role.ADMIN, Role.TRAINER)
+	async create(@Body() createMemberDto: CreateMemberDto) {
+		const member = await this.membersService.create(createMemberDto);
+		return ApiResponseHelper.success(member, "회원 등록 성공");
+	}
 
   @Put(':id')
   @UseGuards(RolesGuard)
@@ -73,19 +76,20 @@ export class MembersController {
     return ApiResponseHelper.success(membership, '회원권 조회 성공');
   }
 
-  @Post(':id/membership')
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.TRAINER)
-  async createMembership(
-    @Param('id') id: string,
-    @Body() createMembershipDto: CreateMembershipDto,
-  ) {
-    const membership = await this.membersService.createMembership(
-      id,
-      createMembershipDto,
-    );
-    return ApiResponseHelper.success(membership, '회원권 등록 성공');
-  }
+	@Post(":id/membership")
+	@HttpCode(HttpStatus.CREATED)
+	@UseGuards(RolesGuard)
+	@Roles(Role.ADMIN, Role.TRAINER)
+	async createMembership(
+		@Param("id") id: string,
+		@Body() createMembershipDto: CreateMembershipDto,
+	) {
+		const membership = await this.membersService.createMembership(
+			id,
+			createMembershipDto,
+		);
+		return ApiResponseHelper.success(membership, "회원권 등록 성공");
+	}
 
   @Put(':id/membership/:membershipId')
   @UseGuards(RolesGuard)

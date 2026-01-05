@@ -1,13 +1,15 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Param,
-  Body,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
+	Controller,
+	Get,
+	Post,
+	Put,
+	Param,
+	Body,
+	UseGuards,
+	Query,
+	HttpCode,
+	HttpStatus,
+} from "@nestjs/common";
 import { AssessmentsService } from './assessments.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
@@ -40,19 +42,20 @@ export class AssessmentsController {
     return ApiResponseHelper.success(assessment, '평가 조회 성공');
   }
 
-  @Post()
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.TRAINER)
-  async create(
-    @Param('memberId') memberId: string,
-    @Body() createAssessmentDto: CreateAssessmentDto,
-  ) {
-    const assessment = await this.assessmentsService.create(
-      memberId,
-      createAssessmentDto,
-    );
-    return ApiResponseHelper.success(assessment, '평가 생성 성공');
-  }
+	@Post()
+	@HttpCode(HttpStatus.CREATED)
+	@UseGuards(RolesGuard)
+	@Roles(Role.ADMIN, Role.TRAINER)
+	async create(
+		@Param("memberId") memberId: string,
+		@Body() createAssessmentDto: CreateAssessmentDto,
+	) {
+		const assessment = await this.assessmentsService.create(
+			memberId,
+			createAssessmentDto,
+		);
+		return ApiResponseHelper.success(assessment, "평가 생성 성공");
+	}
 
   @Put(':id')
   @UseGuards(RolesGuard)

@@ -1,8 +1,9 @@
 import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+	Injectable,
+	NotFoundException,
+	BadRequestException,
+	Logger,
+} from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Assessment } from '../../entities/assessment.entity';
@@ -17,15 +18,17 @@ import { ErrorCodes } from '../../common/utils/error-codes';
 
 @Injectable()
 export class AssessmentsService {
-  constructor(
-    @InjectRepository(Assessment)
-    private assessmentRepository: Repository<Assessment>,
-    @InjectRepository(AssessmentItem)
-    private assessmentItemRepository: Repository<AssessmentItem>,
-    @InjectRepository(AbilitySnapshot)
-    private abilitySnapshotRepository: Repository<AbilitySnapshot>,
-    private scoreCalculator: ScoreCalculator,
-  ) {}
+	private readonly logger = new Logger(AssessmentsService.name);
+
+	constructor(
+		@InjectRepository(Assessment)
+		private assessmentRepository: Repository<Assessment>,
+		@InjectRepository(AssessmentItem)
+		private assessmentItemRepository: Repository<AssessmentItem>,
+		@InjectRepository(AbilitySnapshot)
+		private abilitySnapshotRepository: Repository<AbilitySnapshot>,
+		private scoreCalculator: ScoreCalculator,
+	) {}
 
   async findAll(memberId: string): Promise<Assessment[]> {
     return this.assessmentRepository.find({
@@ -41,9 +44,12 @@ export class AssessmentsService {
       relations: ['items', 'snapshot'],
     });
 
-    if (!assessment) {
-      throw new NotFoundException('평가를 찾을 수 없습니다.');
-    }
+		if (!assessment) {
+			this.logger.warn(
+				`평가를 찾을 수 없습니다. AssessmentId: ${id}, MemberId: ${memberId}`,
+			);
+			throw new NotFoundException("평가를 찾을 수 없습니다.");
+		}
 
     return assessment;
   }
@@ -58,11 +64,14 @@ export class AssessmentsService {
         where: { memberId, isInitial: true },
       });
 
-      if (existingInitial) {
-        throw new BadRequestException(
-          '초기 평가는 이미 존재합니다. 정기 평가를 생성해주세요.',
-        );
-      }
+			if (existingInitial) {
+				this.logger.warn(
+					`초기 평가가 이미 존재합니다. MemberId: ${memberId}, ExistingAssessmentId: ${existingInitial.id}`,
+				);
+				throw new BadRequestException(
+					"초기 평가는 이미 존재합니다. 정기 평가를 생성해주세요.",
+				);
+			}
     }
 
     // 평가 생성
@@ -203,6 +212,7 @@ export class AssessmentsService {
 		});
 
 		if (snapshots.length === 0) {
+			this.logger.warn(`능력치 스냅샷이 없습니다. MemberId: ${memberId}`);
 			throw new NotFoundException("능력치 스냅샷이 없습니다.");
 		}
 
@@ -252,6 +262,7 @@ export class AssessmentsService {
 		const snapshot = await this.getLatestSnapshot(memberId);
 
 		if (!snapshot) {
+			this.logger.warn(`능력치 스냅샷이 없습니다. MemberId: ${memberId}`);
 			throw new NotFoundException("능력치 스냅샷이 없습니다.");
 		}
 

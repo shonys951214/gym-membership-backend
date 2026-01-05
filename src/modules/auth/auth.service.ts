@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+	Injectable,
+	UnauthorizedException,
+	Logger,
+} from "@nestjs/common";
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,11 +16,13 @@ import { ErrorCodes } from '../../common/utils/error-codes';
 
 @Injectable()
 export class AuthService {
-  constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
-    private jwtService: JwtService,
-  ) {}
+	private readonly logger = new Logger(AuthService.name);
+
+	constructor(
+		@InjectRepository(User)
+		private userRepository: Repository<User>,
+		private jwtService: JwtService,
+	) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userRepository.findOne({
@@ -59,9 +65,12 @@ export class AuthService {
       where: { email: registerDto.email },
     });
 
-    if (existingUser) {
-      throw new UnauthorizedException('이미 등록된 이메일입니다.');
-    }
+		if (existingUser) {
+			this.logger.warn(
+				`회원가입 실패: 이미 등록된 이메일입니다. Email: ${registerDto.email}`,
+			);
+			throw new UnauthorizedException("이미 등록된 이메일입니다.");
+		}
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
