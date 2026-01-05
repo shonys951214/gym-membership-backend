@@ -1,4 +1,5 @@
 import { Controller, Get, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
 import { InsightsService } from "./insights.service";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
@@ -6,6 +7,8 @@ import { Roles } from "../auth/decorators/roles.decorator";
 import { Role } from "../../common/enums";
 import { ApiResponseHelper } from "../../common/utils/api-response";
 
+@ApiTags("insights")
+@ApiBearerAuth("JWT-auth")
 @Controller("api/insights")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN, Role.TRAINER)

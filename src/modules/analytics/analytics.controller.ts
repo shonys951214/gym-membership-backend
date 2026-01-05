@@ -1,8 +1,16 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { ApiResponseHelper } from '../../common/utils/api-response';
 
+@ApiTags("analytics")
+@ApiBearerAuth("JWT-auth")
 @Controller('api/analytics')
 @UseGuards(JwtAuthGuard)
 export class AnalyticsController {

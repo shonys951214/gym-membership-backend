@@ -11,6 +11,12 @@ import {
 	HttpCode,
 	HttpStatus,
 } from "@nestjs/common";
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiBearerAuth,
+} from "@nestjs/swagger";
 import { MembersService } from './members.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
@@ -22,6 +28,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../../common/enums';
 import { ApiResponseHelper } from '../../common/utils/api-response';
 
+@ApiTags("members")
+@ApiBearerAuth("JWT-auth")
 @Controller('api/members')
 @UseGuards(JwtAuthGuard)
 export class MembersController {

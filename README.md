@@ -48,6 +48,11 @@ PORT=3001
 NODE_ENV=development
 JWT_SECRET=your-secret-key-change-this-in-production
 JWT_EXPIRES_IN=7d
+
+# 카카오 로그인 (선택사항 - 추후 구현)
+# KAKAO_CLIENT_ID=your-kakao-client-id
+# KAKAO_CLIENT_SECRET=your-kakao-client-secret
+# KAKAO_REDIRECT_URI=http://localhost:3001/api/auth/kakao/callback
 ```
 
 ### 3. 데이터베이스 설정
@@ -65,14 +70,47 @@ npm run build
 npm run start:prod
 ```
 
+## Render 배포
+
+### Build Command
+
+```bash
+npm install && npm run build
+```
+
+### Start Command
+
+```bash
+npm run start:prod
+```
+
+자세한 배포 가이드는 [docs/RENDER_DEPLOYMENT.md](docs/RENDER_DEPLOYMENT.md)를 참고하세요.
+
+## Swagger API 문서
+
+애플리케이션 실행 후 다음 URL에서 API 문서를 확인할 수 있습니다:
+
+```
+http://localhost:3001/api
+```
+
+Swagger UI에서:
+
+- 모든 API 엔드포인트 확인
+- 요청/응답 스키마 확인
+- 직접 API 테스트 가능
+- JWT 인증 토큰 설정 가능
+
 ## 주요 API 엔드포인트
 
 ### 인증
+
 - `POST /api/auth/login` - 로그인
 - `POST /api/auth/register` - 회원가입
 - `GET /api/auth/session` - 세션 확인
 
 ### 회원 관리
+
 - `GET /api/members` - 회원 목록
 - `GET /api/members/:id` - 회원 상세
 - `POST /api/members` - 회원 등록
@@ -80,6 +118,7 @@ npm run start:prod
 - `DELETE /api/members/:id` - 회원 삭제
 
 ### 평가 시스템
+
 - `GET /api/members/:memberId/assessments` - 평가 목록
 - `POST /api/members/:memberId/assessments` - 평가 생성
 - `PUT /api/members/:memberId/assessments/:id` - 평가 수정
@@ -87,10 +126,12 @@ npm run start:prod
 - `GET /api/members/:memberId/assessments/abilities/compare` - 능력치 비교
 
 ### 분석
+
 - `GET /api/analytics/averages` - 전체 평균
 - `GET /api/analytics/comparison/:memberId` - 개별 vs 평균 비교
 
 ### 부상 관리
+
 - `GET /api/members/:memberId/injuries` - 부상 이력 조회
 - `POST /api/members/:memberId/injuries` - 부상 이력 등록
 - `POST /api/members/:memberId/injuries/:id/restrictions` - 평가 제한 설정
@@ -143,4 +184,3 @@ npm run migration:revert
 ## 라이선스
 
 ISC
-

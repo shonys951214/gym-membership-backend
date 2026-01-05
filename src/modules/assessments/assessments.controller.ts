@@ -10,6 +10,12 @@ import {
 	HttpCode,
 	HttpStatus,
 } from "@nestjs/common";
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiBearerAuth,
+} from "@nestjs/swagger";
 import { AssessmentsService } from './assessments.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
@@ -19,6 +25,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../../common/enums';
 import { ApiResponseHelper } from '../../common/utils/api-response';
 
+@ApiTags("assessments")
+@ApiBearerAuth("JWT-auth")
 @Controller('api/members/:memberId/assessments')
 @UseGuards(JwtAuthGuard)
 export class AssessmentsController {

@@ -11,6 +11,12 @@ import {
 	HttpCode,
 	HttpStatus,
 } from "@nestjs/common";
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiBearerAuth,
+} from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
@@ -23,6 +29,8 @@ import { CreateInjuryDto } from "./dto/create-injury.dto";
 import { CreateInjuryRestrictionDto } from "./dto/create-injury-restriction.dto";
 import { ApiResponseHelper } from "../../common/utils/api-response";
 
+@ApiTags("injuries")
+@ApiBearerAuth("JWT-auth")
 @Controller('api/members/:memberId/injuries')
 @UseGuards(JwtAuthGuard)
 export class InjuriesController {
