@@ -1,0 +1,298 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Assessment } from '../../entities/assessment.entity';
+import { AssessmentItem } from '../../entities/assessment-item.entity';
+import { AssessmentType, Condition, Category } from '../../common/enums';
+import { AbilitySnapshot } from '../../entities/ability-snapshot.entity';
+import { ScoreCalculator } from '../../common/utils/score-calculator';
+import { CreateAssessmentDto } from './dto/create-assessment.dto';
+import { UpdateAssessmentDto } from './dto/update-assessment.dto';
+import { CreateAssessmentItemDto } from './dto/create-assessment-item.dto';
+import { ErrorCodes } from '../../common/utils/error-codes';
+
+@Injectable()
+export class AssessmentsService {
+  constructor(
+    @InjectRepository(Assessment)
+    private assessmentRepository: Repository<Assessment>,
+    @InjectRepository(AssessmentItem)
+    private assessmentItemRepository: Repository<AssessmentItem>,
+    @InjectRepository(AbilitySnapshot)
+    private abilitySnapshotRepository: Repository<AbilitySnapshot>,
+    private scoreCalculator: ScoreCalculator,
+  ) {}
+
+  async findAll(memberId: string): Promise<Assessment[]> {
+    return this.assessmentRepository.find({
+      where: { memberId },
+      relations: ['items', 'snapshot'],
+      order: { assessedAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: string, memberId: string): Promise<Assessment> {
+    const assessment = await this.assessmentRepository.findOne({
+      where: { id, memberId },
+      relations: ['items', 'snapshot'],
+    });
+
+    if (!assessment) {
+      throw new NotFoundException('평가를 찾을 수 없습니다.');
+    }
+
+    return assessment;
+  }
+
+  async create(
+    memberId: string,
+    createAssessmentDto: CreateAssessmentDto,
+  ): Promise<Assessment> {
+    // 초기 평가 중복 체크
+    if (createAssessmentDto.assessmentType === AssessmentType.INITIAL) {
+      const existingInitial = await this.assessmentRepository.findOne({
+        where: { memberId, isInitial: true },
+      });
+
+      if (existingInitial) {
+        throw new BadRequestException(
+          '초기 평가는 이미 존재합니다. 정기 평가를 생성해주세요.',
+        );
+      }
+    }
+
+    // 평가 생성
+    const assessment = this.assessmentRepository.create({
+      memberId,
+      assessmentType: createAssessmentDto.assessmentType,
+      isInitial: createAssessmentDto.assessmentType === AssessmentType.INITIAL,
+      assessedAt: new Date(createAssessmentDto.assessedAt),
+      trainerComment: createAssessmentDto.trainerComment,
+      bodyWeight: createAssessmentDto.bodyWeight,
+      condition: createAssessmentDto.condition,
+    });
+
+    const savedAssessment = await this.assessmentRepository.save(assessment);
+
+    // 평가 항목 생성 및 점수 계산
+    const items = await Promise.all(
+      createAssessmentDto.items.map(async (itemDto) => {
+        // TODO: 실제 점수 계산 로직 (표준화 함수 필요)
+        // 현재는 임시로 value를 그대로 사용
+        const score = itemDto.value; // 실제로는 표준화 함수를 통해 계산
+
+        const assessmentItem = this.assessmentItemRepository.create({
+          assessmentId: savedAssessment.id,
+          category: itemDto.category,
+          name: itemDto.name,
+          value: itemDto.value,
+          unit: itemDto.unit,
+          score,
+        });
+
+        return this.assessmentItemRepository.save(assessmentItem);
+      }),
+    );
+
+    // 능력치 스냅샷 생성
+    await this.scoreCalculator.calculateAssessmentScore(
+      savedAssessment.id,
+      memberId,
+    );
+
+    // 스냅샷 포함하여 반환
+    return this.findOne(savedAssessment.id, memberId);
+  }
+
+  async update(
+    id: string,
+    memberId: string,
+    updateAssessmentDto: UpdateAssessmentDto,
+  ): Promise<Assessment> {
+    const assessment = await this.findOne(id, memberId);
+
+    // 평가 삭제는 금지 (데이터 무결성)
+    // 수정만 가능
+
+    if (updateAssessmentDto.assessedAt) {
+      assessment.assessedAt = new Date(updateAssessmentDto.assessedAt);
+    }
+    if (updateAssessmentDto.trainerComment !== undefined) {
+      assessment.trainerComment = updateAssessmentDto.trainerComment;
+    }
+    if (updateAssessmentDto.bodyWeight !== undefined) {
+      assessment.bodyWeight = updateAssessmentDto.bodyWeight;
+    }
+    if (updateAssessmentDto.condition !== undefined) {
+      assessment.condition = updateAssessmentDto.condition;
+    }
+
+    const savedAssessment = await this.assessmentRepository.save(assessment);
+
+    // 항목 업데이트
+    if (updateAssessmentDto.items) {
+      // 기존 항목 삭제
+      await this.assessmentItemRepository.delete({
+        assessmentId: id,
+      });
+
+      // 새 항목 생성
+      await Promise.all(
+        updateAssessmentDto.items.map(async (itemDto) => {
+          const score = itemDto.value; // 실제로는 표준화 함수를 통해 계산
+
+          const assessmentItem = this.assessmentItemRepository.create({
+            assessmentId: id,
+            category: itemDto.category,
+            name: itemDto.name,
+            value: itemDto.value,
+            unit: itemDto.unit,
+            score,
+          });
+
+          return this.assessmentItemRepository.save(assessmentItem);
+        }),
+      );
+
+      // 스냅샷 재계산
+      await this.scoreCalculator.calculateAssessmentScore(id, memberId);
+    }
+
+    return this.findOne(id, memberId);
+  }
+
+  // 평가 삭제는 금지
+  // async remove(id: string, memberId: string): Promise<void> {
+  //   throw new BadRequestException('평가 삭제는 불가능합니다.');
+  // }
+
+  // 능력치 관련 메서드
+  async getLatestSnapshot(memberId: string): Promise<AbilitySnapshot | null> {
+    return this.abilitySnapshotRepository.findOne({
+      where: { memberId },
+      order: { assessedAt: 'DESC' },
+      relations: ['assessment'],
+    });
+  }
+
+  async getSnapshots(memberId: string): Promise<AbilitySnapshot[]> {
+    return this.abilitySnapshotRepository.find({
+      where: { memberId },
+      order: { assessedAt: 'DESC' },
+      relations: ['assessment'],
+    });
+  }
+
+	async compareSnapshots(
+		memberId: string,
+		prevCount: number = 1,
+	): Promise<{
+		current: AbilitySnapshot;
+		previous: AbilitySnapshot | null;
+		delta: Record<string, number>;
+		percentageChange: Record<string, number>;
+	}> {
+		const snapshots = await this.abilitySnapshotRepository.find({
+			where: { memberId },
+			order: { assessedAt: "DESC" },
+			take: prevCount + 1,
+		});
+
+		if (snapshots.length === 0) {
+			throw new NotFoundException("능력치 스냅샷이 없습니다.");
+		}
+
+		const current = snapshots[0];
+		const previous = snapshots.length > 1 ? snapshots[prevCount] : null;
+
+		const delta: Record<string, number> = {};
+		const percentageChange: Record<string, number> = {};
+
+		if (previous) {
+			const fields = [
+				"strengthScore",
+				"cardioScore",
+				"enduranceScore",
+				"bodyScore",
+				"stabilityScore",
+				"totalScore",
+			];
+
+			fields.forEach((field) => {
+				const currentValue = current[field] || 0;
+				const previousValue = previous[field] || 0;
+				delta[field] = currentValue - previousValue;
+				percentageChange[field] =
+					previousValue !== 0
+						? ((currentValue - previousValue) / previousValue) * 100
+						: 0;
+			});
+		}
+
+		return {
+			current,
+			previous,
+			delta,
+			percentageChange,
+		};
+	}
+
+	/**
+	 * 능력치 헥사곤 데이터 (6개 지표)
+	 */
+	async getHexagonData(memberId: string): Promise<{
+		indicators: Array<{ name: string; score: number }>;
+		assessedAt: string;
+		version: string;
+	}> {
+		const snapshot = await this.getLatestSnapshot(memberId);
+
+		if (!snapshot) {
+			throw new NotFoundException("능력치 스냅샷이 없습니다.");
+		}
+
+		return {
+			indicators: [
+				{ name: "근력", score: snapshot.strengthScore || 0 },
+				{ name: "심폐", score: snapshot.cardioScore || 0 },
+				{ name: "지구력", score: snapshot.enduranceScore || 0 },
+				{ name: "신체", score: snapshot.bodyScore || 0 },
+				{ name: "안정성", score: snapshot.stabilityScore || 0 },
+			],
+			assessedAt: snapshot.assessedAt.toISOString(),
+			version: snapshot.version || "v1",
+		};
+	}
+
+	/**
+	 * 체력 테스트 히스토리
+	 */
+	async getHistory(memberId: string): Promise<{
+		history: Array<{
+			assessedAt: string;
+			indicators: Array<{ name: string; score: number }>;
+			version: string;
+		}>;
+	}> {
+		const snapshots = await this.getSnapshots(memberId);
+
+		return {
+			history: snapshots.map((snapshot) => ({
+				assessedAt: snapshot.assessedAt.toISOString(),
+				indicators: [
+					{ name: "근력", score: snapshot.strengthScore || 0 },
+					{ name: "심폐", score: snapshot.cardioScore || 0 },
+					{ name: "지구력", score: snapshot.enduranceScore || 0 },
+					{ name: "신체", score: snapshot.bodyScore || 0 },
+					{ name: "안정성", score: snapshot.stabilityScore || 0 },
+				],
+				version: snapshot.version || "v1",
+			})),
+		};
+	}
+}
+
