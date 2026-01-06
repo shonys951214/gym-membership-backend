@@ -196,6 +196,29 @@ export class AuthController {
 	}
 
 	/**
+	 * 전체 TRAINER 목록 조회 (ADMIN만) - 승인됨, 대기중 모두 포함
+	 */
+	@Get('trainers')
+	@UseGuards(JwtAuthGuard, RolesGuard)
+	@Roles(Role.ADMIN)
+	@ApiBearerAuth("JWT-auth")
+	@ApiOperation({ summary: '전체 TRAINER 목록 조회', description: '모든 TRAINER 목록을 조회합니다. (승인됨, 대기중 모두 포함, ADMIN만)' })
+	@ApiResponse({ status: 200, description: '전체 TRAINER 목록 조회 성공' })
+	@ApiResponse({ status: 401, description: '인증 필요' })
+	@ApiResponse({ status: 403, description: '권한 없음 (ADMIN만 가능)' })
+	async getAllTrainers() {
+		const trainers = await this.authService.getAllTrainers();
+		
+		// 비밀번호 제외하고 반환
+		const trainerList = trainers.map(({ password, refreshToken, ...trainer }) => trainer);
+		
+		return ApiResponseHelper.success(
+			{ trainers: trainerList, total: trainerList.length },
+			'전체 TRAINER 목록 조회 성공'
+		);
+	}
+
+	/**
 	 * TRAINER 승인 (ADMIN만)
 	 */
 	@Post('approve-trainer/:id')
@@ -218,21 +241,49 @@ export class AuthController {
 	}
 
 	/**
-	 * TRAINER 거부 (ADMIN만)
+	 * TRAINER 승인 취소 (ADMIN만) - 이미 승인된 TRAINER를 다시 막기
+	 */
+	@Post('disapprove-trainer/:id')
+	@UseGuards(JwtAuthGuard, RolesGuard)
+	@Roles(Role.ADMIN)
+	@ApiBearerAuth("JWT-auth")
+	@ApiOperation({ summary: 'TRAINER 승인 취소', description: '이미 승인된 TRAINER의 승인을 취소합니다. (ADMIN만)' })
+	@ApiParam({ name: 'id', description: 'TRAINER ID (UUID)', type: 'string' })
+	@ApiResponse({ status: 200, description: 'TRAINER 승인 취소 성공' })
+	@ApiResponse({ status: 401, description: '인증 필요' })
+	@ApiResponse({ status: 403, description: '권한 없음 (ADMIN만 가능)' })
+	@ApiResponse({ status: 404, description: 'TRAINER를 찾을 수 없습니다.' })
+	@ApiResponse({ status: 400, description: '이미 승인되지 않은 TRAINER입니다.' })
+	async disapproveTrainer(@Param('id') id: string, @Request() req) {
+		const disapprovedTrainer = await this.authService.disapproveTrainer(id, req.user.id);
+		
+		// 비밀번호 제외하고 반환
+		const { password, refreshToken, ...trainerResponse } = disapprovedTrainer;
+		
+		return ApiResponseHelper.success(trainerResponse, 'TRAINER 승인 취소 성공');
+	}
+
+	/**
+	 * TRAINER 거부 (ADMIN만) - 승인된 TRAINER를 거부 (isApproved를 false로 변경)
 	 */
 	@Delete('reject-trainer/:id')
 	@UseGuards(JwtAuthGuard, RolesGuard)
 	@Roles(Role.ADMIN)
 	@ApiBearerAuth("JWT-auth")
-	@ApiOperation({ summary: 'TRAINER 거부', description: '승인 대기 중인 TRAINER를 거부하고 계정을 삭제합니다. (ADMIN만)' })
+	@ApiOperation({ summary: 'TRAINER 거부', description: '승인된 TRAINER를 거부합니다. (isApproved를 false로 변경, 계정은 삭제하지 않음, ADMIN만)' })
 	@ApiParam({ name: 'id', description: 'TRAINER ID (UUID)', type: 'string' })
 	@ApiResponse({ status: 200, description: 'TRAINER 거부 성공' })
 	@ApiResponse({ status: 401, description: '인증 필요' })
 	@ApiResponse({ status: 403, description: '권한 없음 (ADMIN만 가능)' })
 	@ApiResponse({ status: 404, description: 'TRAINER를 찾을 수 없습니다.' })
+	@ApiResponse({ status: 400, description: '이미 거부된 TRAINER입니다.' })
 	async rejectTrainer(@Param('id') id: string, @Request() req) {
-		await this.authService.rejectTrainer(id, req.user.id);
-		return ApiResponseHelper.success(null, 'TRAINER 거부 성공');
+		const rejectedTrainer = await this.authService.rejectTrainer(id, req.user.id);
+		
+		// 비밀번호 제외하고 반환
+		const { password, refreshToken, ...trainerResponse } = rejectedTrainer;
+		
+		return ApiResponseHelper.success(trainerResponse, 'TRAINER 거부 성공');
 	}
 }
 

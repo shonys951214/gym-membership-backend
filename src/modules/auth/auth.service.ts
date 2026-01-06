@@ -142,6 +142,22 @@ export class AuthService {
 	}
 
 	/**
+	 * 전체 TRAINER 목록 조회 (ADMIN만) - 승인됨, 대기중 모두 포함
+	 */
+	async getAllTrainers(): Promise<User[]> {
+		const trainers = await this.userRepository.find({
+			where: {
+				role: Role.TRAINER,
+			},
+			order: {
+				createdAt: 'ASC', // 가입일 순으로 정렬
+			},
+		});
+
+		return trainers;
+	}
+
+	/**
 	 * TRAINER 승인 (ADMIN만)
 	 */
 	async approveTrainer(trainerId: string, adminId: string): Promise<User> {
@@ -150,15 +166,15 @@ export class AuthService {
 		});
 
 		if (!trainer) {
-			throw ApiExceptions.memberNotFound('TRAINER를 찾을 수 없습니다.');
+			throw ApiExceptions.trainerNotFound();
 		}
 
 		if (trainer.role !== Role.TRAINER) {
-			throw ApiExceptions.forbidden('TRAINER가 아닙니다.');
+			throw ApiExceptions.notATrainer();
 		}
 
 		if (trainer.isApproved) {
-			throw ApiExceptions.validationError('이미 승인된 TRAINER입니다.');
+			throw ApiExceptions.trainerAlreadyApproved();
 		}
 
 		trainer.isApproved = true;
@@ -172,30 +188,63 @@ export class AuthService {
 	}
 
 	/**
-	 * TRAINER 거부 (ADMIN만) - 계정 삭제
+	 * TRAINER 승인 취소 (ADMIN만) - 이미 승인된 TRAINER를 다시 막기
 	 */
-	async rejectTrainer(trainerId: string, adminId: string): Promise<void> {
+	async disapproveTrainer(trainerId: string, adminId: string): Promise<User> {
 		const trainer = await this.userRepository.findOne({
 			where: { id: trainerId },
 		});
 
 		if (!trainer) {
-			throw ApiExceptions.memberNotFound('TRAINER를 찾을 수 없습니다.');
+			throw ApiExceptions.trainerNotFound();
 		}
 
 		if (trainer.role !== Role.TRAINER) {
-			throw ApiExceptions.forbidden('TRAINER가 아닙니다.');
+			throw ApiExceptions.notATrainer();
 		}
 
-		if (trainer.isApproved) {
-			throw ApiExceptions.validationError('이미 승인된 TRAINER는 거부할 수 없습니다.');
+		if (!trainer.isApproved) {
+			throw ApiExceptions.validationError('이미 승인되지 않은 TRAINER입니다.');
 		}
 
-		await this.userRepository.remove(trainer);
+		trainer.isApproved = false;
+		const disapprovedTrainer = await this.userRepository.save(trainer);
 
 		this.logger.log(
-			`TRAINER 거부 완료: ${trainer.email} (거부자: ${adminId})`,
+			`TRAINER 승인 취소 완료: ${disapprovedTrainer.email} (취소자: ${adminId})`,
 		);
+
+		return disapprovedTrainer;
+	}
+
+	/**
+	 * TRAINER 거부 (ADMIN만) - isApproved를 false로 변경 (계정 삭제하지 않음)
+	 */
+	async rejectTrainer(trainerId: string, adminId: string): Promise<User> {
+		const trainer = await this.userRepository.findOne({
+			where: { id: trainerId },
+		});
+
+		if (!trainer) {
+			throw ApiExceptions.trainerNotFound();
+		}
+
+		if (trainer.role !== Role.TRAINER) {
+			throw ApiExceptions.notATrainer();
+		}
+
+		if (!trainer.isApproved) {
+			throw ApiExceptions.validationError('이미 거부된 TRAINER입니다.');
+		}
+
+		trainer.isApproved = false;
+		const rejectedTrainer = await this.userRepository.save(trainer);
+
+		this.logger.log(
+			`TRAINER 거부 완료: ${rejectedTrainer.email} (거부자: ${adminId})`,
+		);
+
+		return rejectedTrainer;
 	}
 
 	/**

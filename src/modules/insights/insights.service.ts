@@ -7,7 +7,7 @@ import { Assessment } from "../../entities/assessment.entity";
 import { MemberStatus } from "../../common/enums";
 import { DateHelper } from "../../common/utils/date-helper";
 
-interface HexagonData {
+export interface HexagonData {
 	indicators: Array<{
 		name: string;
 		score: number;
@@ -16,7 +16,7 @@ interface HexagonData {
 	version: string;
 }
 
-interface WeeklySummary {
+export interface WeeklySummary {
 	thisWeek: {
 		strengthScore: number;
 		cardioScore: number;
@@ -51,7 +51,7 @@ interface WeeklySummary {
 	};
 }
 
-interface RiskMember {
+export interface RiskMember {
 	memberId: string;
 	memberName: string;
 	riskType: "DECLINE" | "INJURY" | "INACTIVE";

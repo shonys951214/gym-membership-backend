@@ -43,6 +43,19 @@ export class ApiExceptions {
 		return new ApiException('MEMBER_ALREADY_EXISTS', message, HttpStatus.BAD_REQUEST);
 	}
 
+	// TRAINER 관련
+	static trainerNotFound(message: string = 'TRAINER를 찾을 수 없습니다.'): ApiException {
+		return new ApiException('MEMBER_NOT_FOUND', message, HttpStatus.NOT_FOUND);
+	}
+
+	static notATrainer(message: string = '해당 사용자는 TRAINER가 아닙니다.'): ApiException {
+		return new ApiException('VALIDATION_ERROR', message, HttpStatus.BAD_REQUEST);
+	}
+
+	static trainerAlreadyApproved(message: string = '이미 승인된 TRAINER입니다.'): ApiException {
+		return new ApiException('VALIDATION_ERROR', message, HttpStatus.BAD_REQUEST);
+	}
+
 	// 평가 관련
 	static assessmentNotFound(message: string = '평가를 찾을 수 없습니다.'): ApiException {
 		return new ApiException('ASSESSMENT_NOT_FOUND', message, HttpStatus.NOT_FOUND);
