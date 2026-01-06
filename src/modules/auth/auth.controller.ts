@@ -18,8 +18,7 @@ import { RegisterDto } from "./dto/register.dto";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { Public } from "../../common/decorators";
 import { ApiResponseHelper } from "../../common/utils/api-response";
-// 카카오 로그인 구현 시 주석 해제
-// import { AuthGuard } from '@nestjs/passport';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags("auth")
 @Controller('api/auth')
@@ -83,25 +82,28 @@ export class AuthController {
 
 	/**
 	 * 카카오 로그인 시작
-	 * 카카오 로그인 구현 시 주석 해제
 	 */
-	// @Get('kakao')
-	// @Public()
-	// @UseGuards(AuthGuard('kakao'))
-	// async kakaoLogin() {
-	//   // Passport가 자동으로 카카오 로그인 페이지로 리다이렉트
-	// }
+	@Get('kakao')
+	@Public()
+	@UseGuards(AuthGuard('kakao'))
+	@ApiOperation({ summary: '카카오 로그인 시작', description: '카카오 로그인 페이지로 리다이렉트합니다.' })
+	@ApiResponse({ status: 302, description: '카카오 로그인 페이지로 리다이렉트' })
+	async kakaoLogin() {
+		// Passport가 자동으로 카카오 로그인 페이지로 리다이렉트
+	}
 
 	/**
 	 * 카카오 로그인 콜백
-	 * 카카오 로그인 구현 시 주석 해제
 	 */
-	// @Get('kakao/callback')
-	// @Public()
-	// @UseGuards(AuthGuard('kakao'))
-	// async kakaoCallback(@Request() req) {
-	//   // req.user에 validateOrCreateSocialUser에서 반환한 값이 들어있음
-	//   return ApiResponseHelper.success(req.user, '카카오 로그인 성공');
-	// }
+	@Get('kakao/callback')
+	@Public()
+	@UseGuards(AuthGuard('kakao'))
+	@ApiOperation({ summary: '카카오 로그인 콜백', description: '카카오 인증 후 콜백을 처리하고 JWT 토큰을 반환합니다.' })
+	@ApiResponse({ status: 200, description: '카카오 로그인 성공' })
+	@ApiResponse({ status: 401, description: '인증 실패' })
+	async kakaoCallback(@Request() req) {
+		// req.user에 validateOrCreateSocialUser에서 반환한 값이 들어있음
+		return ApiResponseHelper.success(req.user, '카카오 로그인 성공');
+	}
 }
 

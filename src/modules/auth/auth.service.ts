@@ -126,13 +126,25 @@ export class AuthService {
 					existingUser.provider = socialUser.provider;
 					existingUser.providerId = socialUser.providerId;
 					user = await this.userRepository.save(existingUser);
+					this.logger.log(
+						`소셜 로그인 계정 연결: ${socialUser.provider} 계정이 기존 이메일(${socialUser.email})과 연결됨`,
+					);
 				}
 			}
 
 			// 여전히 없으면 새로 생성
 			if (!user) {
+				// 이메일이 없으면 자동 생성
+				const generatedEmail = socialUser.email || `${socialUser.provider}_${socialUser.providerId}@social.local`;
+				
+				if (!socialUser.email) {
+					this.logger.warn(
+						`소셜 로그인 이메일 없음: ${socialUser.provider} 사용자(${socialUser.providerId})의 이메일 정보가 없어 자동 생성: ${generatedEmail}`,
+					);
+				}
+
 				user = this.userRepository.create({
-					email: socialUser.email || `${socialUser.provider}_${socialUser.providerId}@social.local`,
+					email: generatedEmail,
 					password: null, // 소셜 로그인은 비밀번호 없음
 					name: socialUser.name,
 					provider: socialUser.provider,
@@ -141,6 +153,9 @@ export class AuthService {
 				});
 
 				user = await this.userRepository.save(user);
+				this.logger.log(
+					`소셜 로그인 사용자 생성: ${socialUser.provider} 사용자 생성 완료 (Email: ${generatedEmail}, Name: ${socialUser.name})`,
+				);
 			}
 		}
 
