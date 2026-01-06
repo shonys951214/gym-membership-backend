@@ -32,6 +32,9 @@ export class User {
 	@Column({ name: 'provider_id', length: 255, nullable: true })
 	providerId: string; // 소셜 로그인 제공자의 사용자 ID
 
+	@Column({ name: 'refresh_token', length: 500, nullable: true })
+	refreshToken: string; // Refresh Token (DB에 저장)
+
   @Column({
     type: 'enum',
     enum: Role,

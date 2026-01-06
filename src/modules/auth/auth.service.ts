@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../entities/user.entity';
 import { Role } from '../../common/enums';
@@ -22,6 +23,7 @@ export class AuthService {
 		@InjectRepository(User)
 		private userRepository: Repository<User>,
 		private jwtService: JwtService,
+		private configService: ConfigService,
 	) {}
 
 	async validateUser(email: string, password: string): Promise<User | null> {
@@ -46,15 +48,15 @@ export class AuthService {
 		return null;
 	}
 
-  async login(loginDto: LoginDto) {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
+	async login(loginDto: LoginDto) {
+		const user = await this.validateUser(loginDto.email, loginDto.password);
 
-    if (!user) {
-      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
-    }
+		if (!user) {
+			throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+		}
 
-		return this.generateToken(user);
-  }
+		return await this.generateToken(user);
+	}
 
   async register(registerDto: RegisterDto) {
     const existingUser = await this.userRepository.findOne({
@@ -96,6 +98,119 @@ export class AuthService {
 	}
 
 	/**
+	 * 사용자 정보 수정
+	 */
+	async updateUser(
+		userId: string,
+		updateUserDto: {
+			name?: string;
+			email?: string;
+			password?: string;
+			role?: Role;
+		},
+		currentUser: { id: string; role: Role },
+	): Promise<User> {
+		const user = await this.userRepository.findOne({
+			where: { id: userId },
+		});
+
+		if (!user) {
+			throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+		}
+
+		// 이메일 변경 시 중복 체크
+		if (updateUserDto.email && updateUserDto.email !== user.email) {
+			const existingUser = await this.userRepository.findOne({
+				where: { email: updateUserDto.email },
+			});
+
+			if (existingUser) {
+				this.logger.warn(
+					`사용자 수정 실패: 이미 등록된 이메일입니다. Email: ${updateUserDto.email}`,
+				);
+				throw new UnauthorizedException('이미 등록된 이메일입니다.');
+			}
+		}
+
+		// 역할 변경은 ADMIN만 가능
+		if (updateUserDto.role && updateUserDto.role !== user.role) {
+			if (currentUser.role !== Role.ADMIN) {
+				this.logger.warn(
+					`사용자 수정 실패: 역할 변경은 ADMIN만 가능합니다. User: ${currentUser.id}`,
+				);
+				throw new UnauthorizedException('역할 변경은 ADMIN만 가능합니다.');
+			}
+		}
+
+		// 비밀번호 변경 시 해싱
+		if (updateUserDto.password) {
+			updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+		}
+
+		// 소셜 로그인 사용자는 비밀번호 변경 불가
+		if (updateUserDto.password && user.provider && user.provider !== 'LOCAL') {
+			this.logger.warn(
+				`사용자 수정 실패: 소셜 로그인 사용자는 비밀번호를 변경할 수 없습니다. User: ${userId}`,
+			);
+			throw new UnauthorizedException('소셜 로그인 사용자는 비밀번호를 변경할 수 없습니다.');
+		}
+
+		// 정보 업데이트
+		Object.assign(user, {
+			...(updateUserDto.name && { name: updateUserDto.name }),
+			...(updateUserDto.email && { email: updateUserDto.email }),
+			...(updateUserDto.password && { password: updateUserDto.password }),
+			...(updateUserDto.role && currentUser.role === Role.ADMIN && { role: updateUserDto.role }),
+		});
+
+		const updatedUser = await this.userRepository.save(user);
+		this.logger.log(`사용자 정보 수정 완료: ${userId}`);
+
+		return updatedUser;
+	}
+
+	/**
+	 * refreshToken으로 accessToken 갱신
+	 */
+	async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string; user: any }> {
+		try {
+			// refreshToken 검증
+			const payload = this.jwtService.verify(refreshToken);
+
+			// DB에서 사용자와 refreshToken 확인
+			const user = await this.userRepository.findOne({
+				where: { id: payload.sub },
+			});
+
+			if (!user || !user.refreshToken || user.refreshToken !== refreshToken) {
+				this.logger.warn(`토큰 갱신 실패: 유효하지 않은 refreshToken`);
+				throw new UnauthorizedException('유효하지 않은 refreshToken입니다.');
+			}
+
+			// 새로운 토큰 생성
+			return await this.generateToken(user);
+		} catch (error) {
+			this.logger.error(`토큰 갱신 실패: ${error.message}`);
+			throw new UnauthorizedException('유효하지 않은 refreshToken입니다.');
+		}
+	}
+
+	/**
+	 * 로그아웃 시 refreshToken 삭제
+	 */
+	async logout(userId: string): Promise<void> {
+		const user = await this.userRepository.findOne({
+			where: { id: userId },
+		});
+
+		if (user) {
+			user.refreshToken = null;
+			await this.userRepository.save(user);
+			this.logger.log(`로그아웃: 사용자(${userId})의 refreshToken 삭제됨`);
+		}
+	}
+
+	/**
 	 * 소셜 로그인 사용자 검증 및 생성
 	 * 카카오 로그인 등에서 사용
 	 */
@@ -104,7 +219,7 @@ export class AuthService {
 		providerId: string;
 		email?: string;
 		name: string;
-	}): Promise<{ accessToken: string; user: any }> {
+	}): Promise<{ accessToken: string; refreshToken: string; user: any }> {
 		// 기존 소셜 로그인 사용자 찾기
 		let user = await this.userRepository.findOne({
 			where: {
@@ -159,37 +274,47 @@ export class AuthService {
 			}
 		}
 
-		// JWT 토큰 생성
-		const payload = {
-			sub: user.id,
-			email: user.email,
-			role: user.role,
-		};
-
-		return {
-			accessToken: this.jwtService.sign(payload),
-			user: {
-				id: user.id,
-				email: user.email,
-				name: user.name,
-				role: user.role,
-				provider: user.provider,
-			},
-		};
+		// 토큰 생성 (accessToken + refreshToken)
+		return await this.generateToken(user);
 	}
 
 	/**
 	 * 토큰 생성 로직 (일반 로그인과 소셜 로그인 공통 사용)
+	 * accessToken: 15분, refreshToken: 7일
 	 */
-	private generateToken(user: User): { accessToken: string; user: any } {
+	private async generateToken(user: User): Promise<{ accessToken: string; refreshToken: string; user: any }> {
 		const payload = {
 			sub: user.id,
 			email: user.email,
 			role: user.role,
 		};
 
+		// accessToken 생성 (15분)
+		const accessTokenExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '15m';
+		// @ts-ignore - JWT expiresIn accepts string values like '15m'
+		const accessToken = this.jwtService.sign(payload, {
+			expiresIn: accessTokenExpiresIn,
+		});
+
+		// refreshToken 생성 (7일)
+		const refreshTokenExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d';
+		// @ts-ignore - JWT expiresIn accepts string values like '7d'
+		const refreshToken = this.jwtService.sign(payload, {
+			expiresIn: refreshTokenExpiresIn,
+		});
+
+		// refreshToken을 DB에 저장 (기존 refreshToken이 있으면 무효화됨)
+		if (user.refreshToken) {
+			this.logger.log(
+				`기존 refreshToken 무효화: 사용자(${user.id})의 이전 세션이 종료됨 (새 로그인 또는 토큰 갱신)`,
+			);
+		}
+		user.refreshToken = refreshToken;
+		await this.userRepository.save(user);
+
 		return {
-			accessToken: this.jwtService.sign(payload),
+			accessToken,
+			refreshToken,
 			user: {
 				id: user.id,
 				email: user.email,
@@ -204,7 +329,7 @@ export class AuthService {
 	 * 테스트 계정 생성 (개발 환경 전용)
 	 * email: test, password: test, 권한: ADMIN (모든 권한)
 	 */
-	async createTestAccount(): Promise<{ accessToken: string; user: any }> {
+	async createTestAccount(): Promise<{ accessToken: string; refreshToken: string; user: any }> {
 		const testEmail = 'test';
 		const testPassword = 'test';
 
@@ -216,7 +341,7 @@ export class AuthService {
 		if (existingUser) {
 			// 이미 존재하면 로그인 처리
 			this.logger.warn(`테스트 계정이 이미 존재합니다. 로그인 처리: ${testEmail}`);
-			return this.generateToken(existingUser);
+			return await this.generateToken(existingUser);
 		}
 
 		// 새 테스트 계정 생성
@@ -234,7 +359,7 @@ export class AuthService {
 		const savedUser = await this.userRepository.save(user);
 		this.logger.log(`테스트 계정 생성 완료: ${testEmail} (권한: ADMIN)`);
 
-		return this.generateToken(savedUser);
+		return await this.generateToken(savedUser);
 	}
 }
 

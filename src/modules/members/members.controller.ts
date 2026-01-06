@@ -58,16 +58,20 @@ export class MembersController {
 		return ApiResponseHelper.success(member, "회원 등록 성공");
 	}
 
-  @Put(':id')
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.TRAINER)
-  async update(
-    @Param('id') id: string,
-    @Body() updateMemberDto: UpdateMemberDto,
-  ) {
-    const member = await this.membersService.update(id, updateMemberDto);
-    return ApiResponseHelper.success(member, '회원 정보 수정 성공');
-  }
+	@Put(':id')
+	@UseGuards(RolesGuard)
+	@Roles(Role.ADMIN, Role.TRAINER)
+	@ApiOperation({ summary: '회원 정보 수정', description: '회원 정보를 수정합니다. (ADMIN, TRAINER 권한 필요)' })
+	@ApiResponse({ status: 200, description: '회원 정보 수정 성공' })
+	@ApiResponse({ status: 404, description: '회원을 찾을 수 없습니다' })
+	@ApiResponse({ status: 403, description: '권한 없음' })
+	async update(
+		@Param('id') id: string,
+		@Body() updateMemberDto: UpdateMemberDto,
+	) {
+		const member = await this.membersService.update(id, updateMemberDto);
+		return ApiResponseHelper.success(member, '회원 정보 수정 성공');
+	}
 
   @Delete(':id')
   @UseGuards(RolesGuard)
