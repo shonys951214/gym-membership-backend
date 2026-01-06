@@ -2,6 +2,8 @@ import { Controller, Get, Param, UseGuards } from "@nestjs/common";
 import {
 	ApiTags,
 	ApiBearerAuth,
+	ApiOperation,
+	ApiParam,
 } from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
@@ -20,6 +22,8 @@ export class MemberAnalyticsController {
 	) {}
 
 	@Get()
+	@ApiOperation({ summary: '회원 능력치 데이터 조회', description: '특정 회원의 모든 능력치 스냅샷 데이터를 조회합니다.' })
+	@ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
 	async getMemberAnalytics(@Param("memberId") memberId: string) {
 		const snapshots = await this.abilitySnapshotRepository.find({
 			where: { memberId },

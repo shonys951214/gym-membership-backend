@@ -20,6 +20,7 @@ import { MembersService } from './members.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { CreateMembershipDto } from './dto/create-membership.dto';
+import { UpdateMembershipDto } from './dto/update-membership.dto';
 import { UpdatePTUsageDto } from './dto/update-pt-usage.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -108,7 +109,7 @@ export class MembersController {
   async updateMembership(
     @Param('id') id: string,
     @Param('membershipId') membershipId: string,
-    @Body() updateData: Partial<CreateMembershipDto>,
+    @Body() updateData: UpdateMembershipDto,
   ) {
     const membership = await this.membersService.updateMembership(
       id,
