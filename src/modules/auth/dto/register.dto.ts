@@ -32,6 +32,7 @@ export class RegisterDto {
 		example: Role.MEMBER,
 		default: Role.MEMBER,
 	})
+	// 깃 커밋용
 	@IsOptional()
 	@IsEnum(Role, { message: "올바른 역할이 아닙니다." })
 	role?: Role;
