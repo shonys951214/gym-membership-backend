@@ -29,7 +29,7 @@ export class User {
 	@Column({ length: 50, nullable: true, default: 'LOCAL' })
 	provider: string; // 'LOCAL', 'KAKAO', 'GOOGLE' 등
 
-	@Column({ length: 255, nullable: true })
+	@Column({ name: 'provider_id', length: 255, nullable: true })
 	providerId: string; // 소셜 로그인 제공자의 사용자 ID
 
   @Column({

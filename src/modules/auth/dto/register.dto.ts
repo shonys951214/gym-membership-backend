@@ -1,13 +1,15 @@
-import { IsEmail, IsString, MinLength, IsOptional, IsEnum } from "class-validator";
+import { IsString, IsOptional, IsEnum } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Role } from "../../../common/enums";
+import { IsEmailOrTest } from "../../../common/decorators/is-email-or-test.decorator";
 
 export class RegisterDto {
 	@ApiProperty({
-		description: "이메일 주소 또는 사용자명",
+		description: "이메일 주소 (test 계정은 예외)",
 		example: "user@example.com",
 	})
 	@IsString({ message: "이메일은 문자열이어야 합니다." })
+	@IsEmailOrTest({ message: "유효한 이메일 형식이어야 합니다. (test 계정은 예외)" })
 	email: string;
 
 	@ApiProperty({
