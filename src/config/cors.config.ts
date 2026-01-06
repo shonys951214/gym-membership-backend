@@ -11,12 +11,12 @@ export const getCorsConfig = (configService: ConfigService): CorsOptions => {
 
 	return {
 		origin: (origin, callback) => {
-			// 개발 환경에서는 모든 origin 허용 (옵션)
-			if (nodeEnv === 'development' && !origin) {
+			// 개발 환경에서는 모든 origin 허용
+			if (nodeEnv === 'development') {
 				return callback(null, true);
 			}
 
-			// 허용된 origin 목록 확인
+			// 프로덕션 환경에서는 허용된 origin만 허용
 			if (!origin || allowedOrigins.includes(origin)) {
 				callback(null, true);
 			} else {

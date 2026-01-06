@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
+import { DateHelper } from './common/utils/date-helper';
 
 @Controller()
 export class AppController {
@@ -14,7 +15,7 @@ export class AppController {
   getHealth() {
     return {
       status: 'ok',
-      timestamp: new Date().toISOString(),
+      timestamp: DateHelper.getKoreaTimeISOString(),
     };
   }
 }

@@ -9,6 +9,7 @@ import {
 import { Request, Response } from "express";
 import { ApiResponseHelper } from "../utils/api-response";
 import { ErrorCodes, ErrorCode } from "../utils/error-codes";
+import { DateHelper } from "../utils/date-helper";
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -69,7 +70,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 			body: request.body || null,
 			query: request.query || null,
 			params: request.params || null,
-			timestamp: new Date().toISOString(),
+			timestamp: DateHelper.getKoreaTimeISOString(),
 			ip: request.ip || request.socket.remoteAddress,
 			userAgent: request.headers["user-agent"] || null,
 		};
@@ -119,7 +120,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 			ApiResponseHelper.error(errorCode, message, {
 				path: request.url,
 				method: request.method,
-				timestamp: new Date().toISOString(),
+				timestamp: DateHelper.getKoreaTimeISOString(),
 			}),
 		);
 	}

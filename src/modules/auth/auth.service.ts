@@ -184,5 +184,42 @@ export class AuthService {
 			},
 		};
 	}
+
+	/**
+	 * 테스트 계정 생성 (개발 환경 전용)
+	 * email: test, password: test, 권한: ADMIN (모든 권한)
+	 */
+	async createTestAccount(): Promise<{ accessToken: string; user: any }> {
+		const testEmail = 'test';
+		const testPassword = 'test';
+
+		// 기존 계정 확인
+		const existingUser = await this.userRepository.findOne({
+			where: { email: testEmail },
+		});
+
+		if (existingUser) {
+			// 이미 존재하면 로그인 처리
+			this.logger.warn(`테스트 계정이 이미 존재합니다. 로그인 처리: ${testEmail}`);
+			return this.generateToken(existingUser);
+		}
+
+		// 새 테스트 계정 생성
+		const hashedPassword = await bcrypt.hash(testPassword, 10);
+
+		const user = this.userRepository.create({
+			email: testEmail,
+			password: hashedPassword,
+			name: '테스트 사용자 (ADMIN)',
+			role: Role.ADMIN, // 모든 권한 부여
+			provider: 'LOCAL',
+			providerId: null,
+		});
+
+		const savedUser = await this.userRepository.save(user);
+		this.logger.log(`테스트 계정 생성 완료: ${testEmail} (권한: ADMIN)`);
+
+		return this.generateToken(savedUser);
+	}
 }
 

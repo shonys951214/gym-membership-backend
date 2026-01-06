@@ -68,6 +68,19 @@ export class AuthController {
 		return ApiResponseHelper.success(null, "로그아웃 성공");
 	}
 
+	@Post("create-test-account")
+	@Public()
+	@ApiOperation({
+		summary: '테스트 계정 생성',
+		description: '테스트용 계정을 생성합니다. (email: test, password: test, 권한: ADMIN) - 개발 환경 전용',
+	})
+	@ApiResponse({ status: 201, description: '테스트 계정 생성 성공' })
+	@ApiResponse({ status: 200, description: '기존 테스트 계정으로 로그인 성공' })
+	async createTestAccount() {
+		const result = await this.authService.createTestAccount();
+		return ApiResponseHelper.success(result, "테스트 계정 생성 성공");
+	}
+
 	/**
 	 * 카카오 로그인 시작
 	 * 카카오 로그인 구현 시 주석 해제

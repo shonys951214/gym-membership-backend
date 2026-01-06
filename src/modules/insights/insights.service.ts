@@ -5,6 +5,7 @@ import { AbilitySnapshot } from "../../entities/ability-snapshot.entity";
 import { Member } from "../../entities/member.entity";
 import { Assessment } from "../../entities/assessment.entity";
 import { MemberStatus } from "../../common/enums";
+import { DateHelper } from "../../common/utils/date-helper";
 
 interface HexagonData {
 	indicators: Array<{
@@ -88,7 +89,7 @@ export class InsightsService {
 					{ name: "신체", score: 0 },
 					{ name: "안정성", score: 0 },
 				],
-				assessedAt: new Date().toISOString(),
+				assessedAt: DateHelper.getKoreaTimeISOString(),
 				version: "v1",
 			};
 		}
@@ -115,7 +116,7 @@ export class InsightsService {
 					{ name: "신체", score: 0 },
 					{ name: "안정성", score: 0 },
 				],
-				assessedAt: new Date().toISOString(),
+				assessedAt: DateHelper.getKoreaTimeISOString(),
 				version: "v1",
 			};
 		}
@@ -153,7 +154,7 @@ export class InsightsService {
 				{ name: "신체", score: Math.round(averages.bodyScore) },
 				{ name: "안정성", score: Math.round(averages.stabilityScore) },
 			],
-			assessedAt: latestDate.toISOString(),
+			assessedAt: DateHelper.toKoreaTimeISOString(latestDate),
 			version: validSnapshots[0].version || "v1",
 		};
 	}

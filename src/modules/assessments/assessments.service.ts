@@ -15,6 +15,7 @@ import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { CreateAssessmentItemDto } from './dto/create-assessment-item.dto';
 import { ErrorCodes } from '../../common/utils/error-codes';
+import { DateHelper } from '../../common/utils/date-helper';
 
 @Injectable()
 export class AssessmentsService {
@@ -274,7 +275,7 @@ export class AssessmentsService {
 				{ name: "신체", score: snapshot.bodyScore || 0 },
 				{ name: "안정성", score: snapshot.stabilityScore || 0 },
 			],
-			assessedAt: snapshot.assessedAt.toISOString(),
+			assessedAt: DateHelper.toKoreaTimeISOString(snapshot.assessedAt),
 			version: snapshot.version || "v1",
 		};
 	}
@@ -293,7 +294,7 @@ export class AssessmentsService {
 
 		return {
 			history: snapshots.map((snapshot) => ({
-				assessedAt: snapshot.assessedAt.toISOString(),
+				assessedAt: DateHelper.toKoreaTimeISOString(snapshot.assessedAt),
 				indicators: [
 					{ name: "근력", score: snapshot.strengthScore || 0 },
 					{ name: "심폐", score: snapshot.cardioScore || 0 },
