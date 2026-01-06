@@ -100,7 +100,8 @@ Content-Type: application/json
 			"email": "user@example.com",
 			"name": "홍길동",
 			"role": "TRAINER",
-			"provider": "LOCAL"
+			"provider": "LOCAL",
+			"isApproved": true
 		}
 	},
 	"message": "로그인 성공"
@@ -111,6 +112,12 @@ Content-Type: application/json
 >
 > - `accessToken`: 15분 유효 (API 요청 시 사용)
 > - `refreshToken`: 7일 유효 (토큰 갱신 시 사용, DB에 저장)
+> - JWT payload에 `isApproved` 포함 (프론트엔드에서 승인 상태 확인 가능)
+
+> **TRAINER 승인 대기 처리**:
+>
+> - 승인 대기 중인 TRAINER(`isApproved: false`)도 로그인 가능
+> - 프론트엔드에서 `role === 'TRAINER' && isApproved === false`인 경우 `/dashboard/approval-pending`으로 리다이렉트
 
 ### 회원가입
 
@@ -145,7 +152,7 @@ Content-Type: application/json
 > **중요**:
 >
 > - `role: "TRAINER"`로 가입하면 `isApproved: false` 상태로 저장됨
-> - ADMIN 승인 전까지는 로그인 불가
+> - **승인 대기 중인 TRAINER도 로그인 가능** (프론트엔드에서 승인 대기 페이지로 리다이렉트)
 > - `role: "MEMBER"`는 자동 승인 (`isApproved: true`)
 > - `role: "ADMIN"`은 회원가입 불가 (test 계정만 사용)
 
@@ -155,6 +162,24 @@ Content-Type: application/json
 GET /api/auth/session
 Authorization: Bearer {token}
 ```
+
+**응답:**
+
+```json
+{
+	"success": true,
+	"data": {
+		"id": "uuid",
+		"email": "user@example.com",
+		"name": "홍길동",
+		"role": "TRAINER",
+		"isApproved": false
+	},
+	"message": "세션 확인 성공"
+}
+```
+
+> **참고**: `isApproved` 필드로 승인 상태 확인 가능
 
 ### 토큰 갱신
 
@@ -279,8 +304,8 @@ Authorization: Bearer {adminToken}
 > **중요**:
 >
 > - TRAINER로 회원가입하면 승인 대기 상태 (`isApproved: false`)
-> - 승인 전까지는 로그인 불가 (에러: "TRAINER 승인이 대기 중입니다")
-> - ADMIN이 승인하면 `isApproved: true`로 변경되어 로그인 가능
+> - **승인 대기 중인 TRAINER도 로그인 가능** (프론트엔드에서 승인 대기 페이지로 리다이렉트)
+> - ADMIN이 승인하면 `isApproved: true`로 변경되어 정상 사용 가능
 > - 거부 시 계정이 삭제됨
 
 ### 카카오 로그인
@@ -579,7 +604,7 @@ src/
 - **역할 기반 접근 제어 (RBAC)**: ADMIN, TRAINER, MEMBER
 - **TRAINER 승인 시스템**:
     - TRAINER 회원가입 시 ADMIN 승인 필요
-    - 승인 전까지 로그인 불가
+    - 승인 대기 중에도 로그인 가능 (프론트엔드에서 승인 대기 페이지로 리다이렉트)
     - ADMIN만 승인/거부 가능
 - **소셜 로그인**: 카카오 로그인 구현 완료
     - User 엔티티에 `provider`, `providerId` 필드
@@ -678,7 +703,7 @@ src/
 5. **에러 처리**: `success: false`인 경우 `error` 객체 확인
 6. **권한**: 일부 API는 ADMIN 또는 TRAINER 권한 필요
 7. **평가 삭제**: 평가는 삭제 불가, 수정만 가능
-8. **TRAINER 승인**: TRAINER로 회원가입하면 ADMIN 승인 필요, 승인 전까지 로그인 불가
+8. **TRAINER 승인**: TRAINER로 회원가입하면 ADMIN 승인 필요, 승인 대기 중에도 로그인 가능 (프론트엔드에서 승인 대기 페이지로 리다이렉트)
 9. **전화번호 형식**: 한국 전화번호 형식 필수 (예: `010-1234-5678`, `02-1234-5678`)
 10. **데이터 검증**: 프론트엔드와 백엔드 모두에서 검증 권장 (UX + 보안)
 11. **User vs Member**:

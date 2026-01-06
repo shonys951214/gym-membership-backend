@@ -40,13 +40,8 @@ export class AuthService {
 			return null;
 		}
 
-		// TRAINER는 승인되지 않으면 로그인 불가
-		if (user.role === Role.TRAINER && !user.isApproved) {
-			this.logger.warn(
-				`로그인 실패: 승인 대기 중인 TRAINER입니다. Email: ${email}`,
-			);
-			return null;
-		}
+		// 승인 대기 TRAINER도 로그인 가능 (프론트엔드에서 처리)
+		// isApproved 체크 제거
 
 		if (await bcrypt.compare(password, user.password)) {
 			return user;
@@ -59,18 +54,10 @@ export class AuthService {
 		const user = await this.validateUser(loginDto.email, loginDto.password);
 
 		if (!user) {
-			// 승인 대기 중인 TRAINER인지 확인
-			const checkUser = await this.userRepository.findOne({
-				where: { email: loginDto.email },
-			});
-			
-			if (checkUser && checkUser.role === Role.TRAINER && !checkUser.isApproved) {
-				throw ApiExceptions.unauthorized('TRAINER 승인이 대기 중입니다. ADMIN의 승인을 기다려주세요.');
-			}
-			
 			throw ApiExceptions.unauthorized('이메일 또는 비밀번호가 올바르지 않습니다.');
 		}
 
+		// 승인 대기 TRAINER도 로그인 가능 (프론트엔드에서 isApproved 체크하여 리다이렉트)
 		return await this.generateToken(user);
 	}
 
@@ -401,6 +388,7 @@ export class AuthService {
 			sub: user.id,
 			email: user.email,
 			role: user.role,
+			isApproved: user.isApproved, // 프론트엔드에서 승인 상태 확인용
 		};
 
 		// accessToken 생성 (15분)
@@ -435,6 +423,7 @@ export class AuthService {
 				name: user.name,
 				role: user.role,
 				provider: user.provider || 'LOCAL',
+				isApproved: user.isApproved, // 프론트엔드에서 승인 상태 확인용
 			},
 		};
 	}

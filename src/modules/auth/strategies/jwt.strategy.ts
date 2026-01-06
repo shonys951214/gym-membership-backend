@@ -36,6 +36,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: user.email,
       name: user.name,
       role: user.role,
+      isApproved: user.isApproved, // 프론트엔드에서 승인 상태 확인용
     };
   }
 }
