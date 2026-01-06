@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AbilitySnapshot } from '../../entities/ability-snapshot.entity';
 import { Member } from '../../entities/member.entity';
+import { ApiExceptions } from '../../common/exceptions';
 
 @Injectable()
 export class AnalyticsService {
@@ -114,7 +115,7 @@ export class AnalyticsService {
 			this.logger.warn(
 				`회원의 능력치 스냅샷을 찾을 수 없습니다. MemberId: ${memberId}`,
 			);
-			throw new NotFoundException("회원의 능력치 스냅샷을 찾을 수 없습니다.");
+			throw ApiExceptions.abilitySnapshotNotFound("회원의 능력치 스냅샷을 찾을 수 없습니다.");
 		}
 
     const averages = await this.getAverages();

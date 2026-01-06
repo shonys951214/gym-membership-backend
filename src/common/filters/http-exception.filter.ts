@@ -10,6 +10,7 @@ import { Request, Response } from "express";
 import { ApiResponseHelper } from "../utils/api-response";
 import { ErrorCodes, ErrorCode } from "../utils/error-codes";
 import { DateHelper } from "../utils/date-helper";
+import { ApiException } from "../exceptions/api.exception";
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -24,7 +25,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
 		let errorCode: ErrorCode = ErrorCodes.INTERNAL_SERVER_ERROR;
 		let message = "서버 오류가 발생했습니다.";
 
-		if (exception instanceof HttpException) {
+		// ApiException인 경우 (에러 코드 포함)
+		if (exception instanceof ApiException) {
+			status = exception.getStatus();
+			const exceptionResponse = exception.getResponse() as { errorCode: ErrorCode; message: string };
+			errorCode = exceptionResponse.errorCode;
+			message = exceptionResponse.message;
+		} else if (exception instanceof HttpException) {
 			status = exception.getStatus();
 			const exceptionResponse = exception.getResponse();
 
@@ -33,36 +40,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
 				errorCode = ErrorCodes.UNAUTHORIZED;
 			} else if (status === HttpStatus.FORBIDDEN) {
 				errorCode = ErrorCodes.FORBIDDEN;
+			} else if (status === HttpStatus.NOT_FOUND) {
+				errorCode = ErrorCodes.MEMBER_NOT_FOUND; // 기본값
 			}
 
 			if (typeof exceptionResponse === "string") {
 				message = exceptionResponse;
-				// NotFoundException, BadRequestException 등의 기본 메시지에서 에러 코드 추출 시도
-				if (message.includes("회원을 찾을 수 없습니다")) {
-					errorCode = ErrorCodes.MEMBER_NOT_FOUND;
-				} else if (message.includes("평가를 찾을 수 없습니다")) {
-					errorCode = ErrorCodes.ASSESSMENT_NOT_FOUND;
-				} else if (message.includes("부상 이력을 찾을 수 없습니다")) {
-					errorCode = ErrorCodes.INJURY_NOT_FOUND;
-				} else if (message.includes("회원권을 찾을 수 없습니다")) {
-					errorCode = ErrorCodes.MEMBER_NOT_FOUND;
-				} else if (message.includes("능력치 스냅샷이 없습니다")) {
-					errorCode = ErrorCodes.ASSESSMENT_NOT_FOUND;
-				} else if (message.includes("이미 등록된 이메일")) {
-					errorCode = ErrorCodes.MEMBER_ALREADY_EXISTS;
-				} else if (message.includes("초기 평가는 이미 존재합니다")) {
-					errorCode = ErrorCodes.INITIAL_ASSESSMENT_ALREADY_EXISTS;
-				} else if (message.includes("찾을 수 없습니다")) {
-					errorCode = ErrorCodes.MEMBER_NOT_FOUND;
-				} else if (message.includes("이미 존재합니다")) {
-					errorCode = ErrorCodes.MEMBER_ALREADY_EXISTS;
-				} else if (message.toLowerCase().includes("unauthorized") || message === "Unauthorized") {
-					errorCode = ErrorCodes.UNAUTHORIZED;
-					message = "인증이 필요합니다. 로그인 후 다시 시도해주세요.";
-				} else if (message.toLowerCase().includes("forbidden") || message === "Forbidden") {
-					errorCode = ErrorCodes.FORBIDDEN;
-					message = "권한이 없습니다. 필요한 권한을 가진 계정으로 로그인해주세요.";
-				}
 			} else if (typeof exceptionResponse === "object" && exceptionResponse !== null) {
 				const responseObj = exceptionResponse as any;
 				message = responseObj.message || message;

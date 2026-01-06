@@ -1,7 +1,5 @@
 import {
 	Injectable,
-	NotFoundException,
-	BadRequestException,
 	Logger,
 } from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,7 +12,7 @@ import { ScoreCalculator } from '../../common/utils/score-calculator';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { CreateAssessmentItemDto } from './dto/create-assessment-item.dto';
-import { ErrorCodes } from '../../common/utils/error-codes';
+import { ApiExceptions } from '../../common/exceptions';
 import { DateHelper } from '../../common/utils/date-helper';
 
 @Injectable()
@@ -49,7 +47,7 @@ export class AssessmentsService {
 			this.logger.warn(
 				`평가를 찾을 수 없습니다. AssessmentId: ${id}, MemberId: ${memberId}`,
 			);
-			throw new NotFoundException("평가를 찾을 수 없습니다.");
+			throw ApiExceptions.assessmentNotFound();
 		}
 
     return assessment;
@@ -69,7 +67,7 @@ export class AssessmentsService {
 				this.logger.warn(
 					`초기 평가가 이미 존재합니다. MemberId: ${memberId}, ExistingAssessmentId: ${existingInitial.id}`,
 				);
-				throw new BadRequestException(
+				throw ApiExceptions.initialAssessmentAlreadyExists(
 					"초기 평가는 이미 존재합니다. 정기 평가를 생성해주세요.",
 				);
 			}
@@ -214,7 +212,7 @@ export class AssessmentsService {
 
 		if (snapshots.length === 0) {
 			this.logger.warn(`능력치 스냅샷이 없습니다. MemberId: ${memberId}`);
-			throw new NotFoundException("능력치 스냅샷이 없습니다.");
+			throw ApiExceptions.abilitySnapshotNotFound();
 		}
 
 		const current = snapshots[0];
@@ -264,7 +262,7 @@ export class AssessmentsService {
 
 		if (!snapshot) {
 			this.logger.warn(`능력치 스냅샷이 없습니다. MemberId: ${memberId}`);
-			throw new NotFoundException("능력치 스냅샷이 없습니다.");
+			throw ApiExceptions.abilitySnapshotNotFound();
 		}
 
 		return {

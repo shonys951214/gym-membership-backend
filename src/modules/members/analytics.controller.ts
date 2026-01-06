@@ -1,8 +1,6 @@
 import { Controller, Get, Param, UseGuards } from "@nestjs/common";
 import {
 	ApiTags,
-	ApiOperation,
-	ApiResponse,
 	ApiBearerAuth,
 } from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";

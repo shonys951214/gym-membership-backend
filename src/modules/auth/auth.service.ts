@@ -1,6 +1,5 @@
 import {
 	Injectable,
-	UnauthorizedException,
 	Logger,
 } from "@nestjs/common";
 import { JwtService } from '@nestjs/jwt';
@@ -13,7 +12,7 @@ import { Role } from '../../common/enums';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ApiResponseHelper } from '../../common/utils/api-response';
-import { ErrorCodes } from '../../common/utils/error-codes';
+import { ApiExceptions } from '../../common/exceptions';
 
 @Injectable()
 export class AuthService {
@@ -66,10 +65,10 @@ export class AuthService {
 			});
 			
 			if (checkUser && checkUser.role === Role.TRAINER && !checkUser.isApproved) {
-				throw new UnauthorizedException('TRAINER 승인이 대기 중입니다. ADMIN의 승인을 기다려주세요.');
+				throw ApiExceptions.unauthorized('TRAINER 승인이 대기 중입니다. ADMIN의 승인을 기다려주세요.');
 			}
 			
-			throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+			throw ApiExceptions.unauthorized('이메일 또는 비밀번호가 올바르지 않습니다.');
 		}
 
 		return await this.generateToken(user);
@@ -84,7 +83,7 @@ export class AuthService {
 			this.logger.warn(
 				`회원가입 실패: 이미 등록된 이메일입니다. Email: ${registerDto.email}`,
 			);
-			throw new UnauthorizedException("이미 등록된 이메일입니다.");
+			throw ApiExceptions.memberAlreadyExists("이미 등록된 이메일입니다.");
 		}
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
@@ -99,7 +98,7 @@ export class AuthService {
 			this.logger.warn(
 				`회원가입 실패: ADMIN 역할은 회원가입으로 생성할 수 없습니다. Email: ${registerDto.email}`,
 			);
-			throw new UnauthorizedException("ADMIN 역할은 회원가입으로 생성할 수 없습니다.");
+			throw ApiExceptions.forbidden("ADMIN 역할은 회원가입으로 생성할 수 없습니다.");
 		}
 
 		const user = this.userRepository.create({
@@ -164,15 +163,15 @@ export class AuthService {
 		});
 
 		if (!trainer) {
-			throw new UnauthorizedException('TRAINER를 찾을 수 없습니다.');
+			throw ApiExceptions.memberNotFound('TRAINER를 찾을 수 없습니다.');
 		}
 
 		if (trainer.role !== Role.TRAINER) {
-			throw new UnauthorizedException('TRAINER가 아닙니다.');
+			throw ApiExceptions.forbidden('TRAINER가 아닙니다.');
 		}
 
 		if (trainer.isApproved) {
-			throw new UnauthorizedException('이미 승인된 TRAINER입니다.');
+			throw ApiExceptions.validationError('이미 승인된 TRAINER입니다.');
 		}
 
 		trainer.isApproved = true;
@@ -194,15 +193,15 @@ export class AuthService {
 		});
 
 		if (!trainer) {
-			throw new UnauthorizedException('TRAINER를 찾을 수 없습니다.');
+			throw ApiExceptions.memberNotFound('TRAINER를 찾을 수 없습니다.');
 		}
 
 		if (trainer.role !== Role.TRAINER) {
-			throw new UnauthorizedException('TRAINER가 아닙니다.');
+			throw ApiExceptions.forbidden('TRAINER가 아닙니다.');
 		}
 
 		if (trainer.isApproved) {
-			throw new UnauthorizedException('이미 승인된 TRAINER는 거부할 수 없습니다.');
+			throw ApiExceptions.validationError('이미 승인된 TRAINER는 거부할 수 없습니다.');
 		}
 
 		await this.userRepository.remove(trainer);
@@ -230,7 +229,7 @@ export class AuthService {
 		});
 
 		if (!user) {
-			throw new UnauthorizedException('사용자를 찾을 수 없습니다.');
+			throw ApiExceptions.memberNotFound('사용자를 찾을 수 없습니다.');
 		}
 
 		// 이메일 변경 시 중복 체크
@@ -243,7 +242,7 @@ export class AuthService {
 				this.logger.warn(
 					`사용자 수정 실패: 이미 등록된 이메일입니다. Email: ${updateUserDto.email}`,
 				);
-				throw new UnauthorizedException('이미 등록된 이메일입니다.');
+				throw ApiExceptions.memberAlreadyExists('이미 등록된 이메일입니다.');
 			}
 		}
 
@@ -253,7 +252,7 @@ export class AuthService {
 				this.logger.warn(
 					`사용자 수정 실패: 역할 변경은 ADMIN만 가능합니다. User: ${currentUser.id}`,
 				);
-				throw new UnauthorizedException('역할 변경은 ADMIN만 가능합니다.');
+				throw ApiExceptions.forbidden('역할 변경은 ADMIN만 가능합니다.');
 			}
 		}
 
@@ -267,7 +266,7 @@ export class AuthService {
 			this.logger.warn(
 				`사용자 수정 실패: 소셜 로그인 사용자는 비밀번호를 변경할 수 없습니다. User: ${userId}`,
 			);
-			throw new UnauthorizedException('소셜 로그인 사용자는 비밀번호를 변경할 수 없습니다.');
+			throw ApiExceptions.forbidden('소셜 로그인 사용자는 비밀번호를 변경할 수 없습니다.');
 		}
 
 		// 정보 업데이트
@@ -299,14 +298,14 @@ export class AuthService {
 
 			if (!user || !user.refreshToken || user.refreshToken !== refreshToken) {
 				this.logger.warn(`토큰 갱신 실패: 유효하지 않은 refreshToken`);
-				throw new UnauthorizedException('유효하지 않은 refreshToken입니다.');
+				throw ApiExceptions.unauthorized('유효하지 않은 refreshToken입니다.');
 			}
 
 			// 새로운 토큰 생성
 			return await this.generateToken(user);
 		} catch (error) {
 			this.logger.error(`토큰 갱신 실패: ${error.message}`);
-			throw new UnauthorizedException('유효하지 않은 refreshToken입니다.');
+			throw ApiExceptions.unauthorized('유효하지 않은 refreshToken입니다.');
 		}
 	}
 

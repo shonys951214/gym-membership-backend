@@ -7,14 +7,11 @@ import {
 	Param,
 	Body,
 	UseGuards,
-	NotFoundException,
 	HttpCode,
 	HttpStatus,
 } from "@nestjs/common";
 import {
 	ApiTags,
-	ApiOperation,
-	ApiResponse,
 	ApiBearerAuth,
 } from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -28,6 +25,7 @@ import { InjuryRestriction } from "../../entities/injury-restriction.entity";
 import { CreateInjuryDto } from "./dto/create-injury.dto";
 import { CreateInjuryRestrictionDto } from "./dto/create-injury-restriction.dto";
 import { ApiResponseHelper } from "../../common/utils/api-response";
+import { ApiExceptions } from "../../common/exceptions";
 
 @ApiTags("injuries")
 @ApiBearerAuth("JWT-auth")
@@ -62,7 +60,7 @@ export class InjuriesController {
 		});
 
 		if (!injury) {
-			throw new NotFoundException("부상 이력을 찾을 수 없습니다.");
+			throw ApiExceptions.injuryNotFound();
 		}
 
 		return ApiResponseHelper.success(injury, "부상 이력 조회 성공");
@@ -99,7 +97,7 @@ export class InjuriesController {
 		});
 
 		if (!injury) {
-			throw new NotFoundException("부상 이력을 찾을 수 없습니다.");
+			throw ApiExceptions.injuryNotFound();
 		}
 
 		Object.assign(injury, updateData);
@@ -125,7 +123,7 @@ export class InjuriesController {
 		});
 
 		if (!injury) {
-			throw new NotFoundException("부상 이력을 찾을 수 없습니다.");
+			throw ApiExceptions.injuryNotFound();
 		}
 
 		const restriction = this.restrictionRepository.create({

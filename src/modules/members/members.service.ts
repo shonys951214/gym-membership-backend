@@ -1,20 +1,18 @@
 import {
 	Injectable,
-	NotFoundException,
-	BadRequestException,
 	Logger,
 } from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Member } from '../../entities/member.entity';
 import { Membership } from '../../entities/membership.entity';
-import { MembershipType, MembershipStatus, MemberStatus } from '../../common/enums';
+import { MembershipStatus, MemberStatus } from '../../common/enums';
 import { PTUsage } from '../../entities/pt-usage.entity';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { UpdatePTUsageDto } from './dto/update-pt-usage.dto';
-import { ErrorCodes } from '../../common/utils/error-codes';
+import { ApiExceptions } from '../../common/exceptions';
 
 @Injectable()
 export class MembersService {
@@ -44,7 +42,7 @@ export class MembersService {
 
 		if (!member) {
 			this.logger.warn(`회원을 찾을 수 없습니다. ID: ${id}`);
-			throw new NotFoundException("회원을 찾을 수 없습니다.");
+			throw ApiExceptions.memberNotFound();
 		}
 
     return member;
@@ -59,7 +57,7 @@ export class MembersService {
 			this.logger.warn(
 				`이미 등록된 이메일입니다. Email: ${createMemberDto.email}`,
 			);
-			throw new BadRequestException("이미 등록된 이메일입니다.");
+			throw ApiExceptions.memberAlreadyExists();
 		}
 
     const member = this.memberRepository.create({
@@ -121,7 +119,7 @@ export class MembersService {
 			this.logger.warn(
 				`회원권을 찾을 수 없습니다. MemberId: ${memberId}, MembershipId: ${membershipId}`,
 			);
-			throw new NotFoundException("회원권을 찾을 수 없습니다.");
+			throw ApiExceptions.membershipNotFound();
 		}
 
     Object.assign(membership, updateData);
@@ -177,7 +175,7 @@ export class MembersService {
 			this.logger.warn(
 				`회원권을 찾을 수 없습니다. MemberId: ${memberId}, MembershipId: ${membershipId}`,
 			);
-			throw new NotFoundException("회원권을 찾을 수 없습니다.");
+			throw ApiExceptions.membershipNotFound();
 		}
 
 		await this.membershipRepository.remove(membership);
