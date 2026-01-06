@@ -35,15 +35,18 @@ export class User {
 	@Column({ name: 'refresh_token', length: 500, nullable: true })
 	refreshToken: string; // Refresh Token (DB에 저장)
 
-  @Column({
-    type: 'enum',
-    enum: Role,
-    default: Role.MEMBER,
-  })
-  role: Role;
+	@Column({
+		type: 'enum',
+		enum: Role,
+		default: Role.MEMBER,
+	})
+	role: Role;
 
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
+	@Column({ name: 'is_approved', default: true })
+	isApproved: boolean; // TRAINER는 ADMIN 승인 필요 (기본값: true, MEMBER는 자동 승인)
+
+	@CreateDateColumn({ name: 'created_at' })
+	createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;

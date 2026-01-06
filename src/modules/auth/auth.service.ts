@@ -41,6 +41,14 @@ export class AuthService {
 			return null;
 		}
 
+		// TRAINER는 승인되지 않으면 로그인 불가
+		if (user.role === Role.TRAINER && !user.isApproved) {
+			this.logger.warn(
+				`로그인 실패: 승인 대기 중인 TRAINER입니다. Email: ${email}`,
+			);
+			return null;
+		}
+
 		if (await bcrypt.compare(password, user.password)) {
 			return user;
 		}
@@ -52,6 +60,15 @@ export class AuthService {
 		const user = await this.validateUser(loginDto.email, loginDto.password);
 
 		if (!user) {
+			// 승인 대기 중인 TRAINER인지 확인
+			const checkUser = await this.userRepository.findOne({
+				where: { email: loginDto.email },
+			});
+			
+			if (checkUser && checkUser.role === Role.TRAINER && !checkUser.isApproved) {
+				throw new UnauthorizedException('TRAINER 승인이 대기 중입니다. ADMIN의 승인을 기다려주세요.');
+			}
+			
 			throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
 		}
 
@@ -71,23 +88,47 @@ export class AuthService {
 		}
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+		const requestedRole = registerDto.role || Role.MEMBER;
+		
+		// TRAINER는 ADMIN 승인 필요 (isApproved: false)
+		// MEMBER는 자동 승인 (isApproved: true)
+		// ADMIN은 회원가입 불가 (test 계정만 사용)
+		const isApproved = requestedRole === Role.MEMBER;
+
+		if (requestedRole === Role.ADMIN) {
+			this.logger.warn(
+				`회원가입 실패: ADMIN 역할은 회원가입으로 생성할 수 없습니다. Email: ${registerDto.email}`,
+			);
+			throw new UnauthorizedException("ADMIN 역할은 회원가입으로 생성할 수 없습니다.");
+		}
 
 		const user = this.userRepository.create({
 			email: registerDto.email,
 			password: hashedPassword,
 			name: registerDto.name,
-			role: registerDto.role || Role.MEMBER,
+			role: requestedRole,
+			isApproved: isApproved,
 			provider: 'LOCAL', // 일반 회원가입은 LOCAL
 			providerId: null,
 		});
 
     const savedUser = await this.userRepository.save(user);
 
+		if (requestedRole === Role.TRAINER) {
+			this.logger.log(
+				`TRAINER 회원가입 완료 (승인 대기): ${savedUser.email} - ADMIN 승인 필요`,
+			);
+		}
+
     return {
       id: savedUser.id,
       email: savedUser.email,
       name: savedUser.name,
       role: savedUser.role,
+      isApproved: savedUser.isApproved,
+      message: requestedRole === Role.TRAINER 
+				? 'TRAINER 회원가입이 완료되었습니다. ADMIN의 승인을 기다려주세요.'
+				: '회원가입이 완료되었습니다.',
     };
   }
 
@@ -95,6 +136,80 @@ export class AuthService {
 		return this.userRepository.findOne({
 			where: { id },
 		});
+	}
+
+	/**
+	 * 승인 대기 중인 TRAINER 목록 조회 (ADMIN만)
+	 */
+	async getPendingTrainers(): Promise<User[]> {
+		const pendingTrainers = await this.userRepository.find({
+			where: {
+				role: Role.TRAINER,
+				isApproved: false,
+			},
+			order: {
+				createdAt: 'ASC', // 가입일 순으로 정렬
+			},
+		});
+
+		return pendingTrainers;
+	}
+
+	/**
+	 * TRAINER 승인 (ADMIN만)
+	 */
+	async approveTrainer(trainerId: string, adminId: string): Promise<User> {
+		const trainer = await this.userRepository.findOne({
+			where: { id: trainerId },
+		});
+
+		if (!trainer) {
+			throw new UnauthorizedException('TRAINER를 찾을 수 없습니다.');
+		}
+
+		if (trainer.role !== Role.TRAINER) {
+			throw new UnauthorizedException('TRAINER가 아닙니다.');
+		}
+
+		if (trainer.isApproved) {
+			throw new UnauthorizedException('이미 승인된 TRAINER입니다.');
+		}
+
+		trainer.isApproved = true;
+		const approvedTrainer = await this.userRepository.save(trainer);
+
+		this.logger.log(
+			`TRAINER 승인 완료: ${approvedTrainer.email} (승인자: ${adminId})`,
+		);
+
+		return approvedTrainer;
+	}
+
+	/**
+	 * TRAINER 거부 (ADMIN만) - 계정 삭제
+	 */
+	async rejectTrainer(trainerId: string, adminId: string): Promise<void> {
+		const trainer = await this.userRepository.findOne({
+			where: { id: trainerId },
+		});
+
+		if (!trainer) {
+			throw new UnauthorizedException('TRAINER를 찾을 수 없습니다.');
+		}
+
+		if (trainer.role !== Role.TRAINER) {
+			throw new UnauthorizedException('TRAINER가 아닙니다.');
+		}
+
+		if (trainer.isApproved) {
+			throw new UnauthorizedException('이미 승인된 TRAINER는 거부할 수 없습니다.');
+		}
+
+		await this.userRepository.remove(trainer);
+
+		this.logger.log(
+			`TRAINER 거부 완료: ${trainer.email} (거부자: ${adminId})`,
+		);
 	}
 
 	/**

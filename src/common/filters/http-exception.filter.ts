@@ -28,6 +28,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
 			status = exception.getStatus();
 			const exceptionResponse = exception.getResponse();
 
+			// HTTP 상태 코드에 따른 기본 에러 코드 설정
+			if (status === HttpStatus.UNAUTHORIZED) {
+				errorCode = ErrorCodes.UNAUTHORIZED;
+			} else if (status === HttpStatus.FORBIDDEN) {
+				errorCode = ErrorCodes.FORBIDDEN;
+			}
+
 			if (typeof exceptionResponse === "string") {
 				message = exceptionResponse;
 				// NotFoundException, BadRequestException 등의 기본 메시지에서 에러 코드 추출 시도
@@ -49,6 +56,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
 					errorCode = ErrorCodes.MEMBER_NOT_FOUND;
 				} else if (message.includes("이미 존재합니다")) {
 					errorCode = ErrorCodes.MEMBER_ALREADY_EXISTS;
+				} else if (message.toLowerCase().includes("unauthorized") || message === "Unauthorized") {
+					errorCode = ErrorCodes.UNAUTHORIZED;
+					message = "인증이 필요합니다. 로그인 후 다시 시도해주세요.";
+				} else if (message.toLowerCase().includes("forbidden") || message === "Forbidden") {
+					errorCode = ErrorCodes.FORBIDDEN;
+					message = "권한이 없습니다. 필요한 권한을 가진 계정으로 로그인해주세요.";
 				}
 			} else if (typeof exceptionResponse === "object" && exceptionResponse !== null) {
 				const responseObj = exceptionResponse as any;

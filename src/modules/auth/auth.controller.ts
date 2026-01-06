@@ -4,6 +4,7 @@ import {
 	Body,
 	Get,
 	Put,
+	Delete,
 	Param,
 	UseGuards,
 	Request,
@@ -169,6 +170,69 @@ export class AuthController {
 		// 비밀번호 제외하고 반환
 		const { password, refreshToken, ...userResponse } = updatedUser;
 		return ApiResponseHelper.success(userResponse, '사용자 정보 수정 성공');
+	}
+
+	/**
+	 * 승인 대기 중인 TRAINER 목록 조회 (ADMIN만)
+	 */
+	@Get('pending-trainers')
+	@UseGuards(JwtAuthGuard, RolesGuard)
+	@Roles(Role.ADMIN)
+	@ApiBearerAuth("JWT-auth")
+	@ApiOperation({ summary: '승인 대기 TRAINER 목록', description: 'ADMIN 승인을 기다리는 TRAINER 목록을 조회합니다. (ADMIN만)' })
+	@ApiResponse({ status: 200, description: '승인 대기 TRAINER 목록 조회 성공' })
+	@ApiResponse({ status: 401, description: '인증 필요' })
+	@ApiResponse({ status: 403, description: '권한 없음 (ADMIN만 가능)' })
+	async getPendingTrainers() {
+		const pendingTrainers = await this.authService.getPendingTrainers();
+		
+		// 비밀번호 제외하고 반환
+		const trainers = pendingTrainers.map(({ password, refreshToken, ...trainer }) => trainer);
+		
+		return ApiResponseHelper.success(
+			{ trainers, total: trainers.length },
+			'승인 대기 TRAINER 목록 조회 성공'
+		);
+	}
+
+	/**
+	 * TRAINER 승인 (ADMIN만)
+	 */
+	@Post('approve-trainer/:id')
+	@UseGuards(JwtAuthGuard, RolesGuard)
+	@Roles(Role.ADMIN)
+	@ApiBearerAuth("JWT-auth")
+	@ApiOperation({ summary: 'TRAINER 승인', description: '승인 대기 중인 TRAINER를 승인합니다. (ADMIN만)' })
+	@ApiParam({ name: 'id', description: 'TRAINER ID (UUID)', type: 'string' })
+	@ApiResponse({ status: 200, description: 'TRAINER 승인 성공' })
+	@ApiResponse({ status: 401, description: '인증 필요' })
+	@ApiResponse({ status: 403, description: '권한 없음 (ADMIN만 가능)' })
+	@ApiResponse({ status: 404, description: 'TRAINER를 찾을 수 없습니다.' })
+	async approveTrainer(@Param('id') id: string, @Request() req) {
+		const approvedTrainer = await this.authService.approveTrainer(id, req.user.id);
+		
+		// 비밀번호 제외하고 반환
+		const { password, refreshToken, ...trainerResponse } = approvedTrainer;
+		
+		return ApiResponseHelper.success(trainerResponse, 'TRAINER 승인 성공');
+	}
+
+	/**
+	 * TRAINER 거부 (ADMIN만)
+	 */
+	@Delete('reject-trainer/:id')
+	@UseGuards(JwtAuthGuard, RolesGuard)
+	@Roles(Role.ADMIN)
+	@ApiBearerAuth("JWT-auth")
+	@ApiOperation({ summary: 'TRAINER 거부', description: '승인 대기 중인 TRAINER를 거부하고 계정을 삭제합니다. (ADMIN만)' })
+	@ApiParam({ name: 'id', description: 'TRAINER ID (UUID)', type: 'string' })
+	@ApiResponse({ status: 200, description: 'TRAINER 거부 성공' })
+	@ApiResponse({ status: 401, description: '인증 필요' })
+	@ApiResponse({ status: 403, description: '권한 없음 (ADMIN만 가능)' })
+	@ApiResponse({ status: 404, description: 'TRAINER를 찾을 수 없습니다.' })
+	async rejectTrainer(@Param('id') id: string, @Request() req) {
+		await this.authService.rejectTrainer(id, req.user.id);
+		return ApiResponseHelper.success(null, 'TRAINER 거부 성공');
 	}
 }
 

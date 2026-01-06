@@ -1,6 +1,7 @@
 import { IsString, IsEmail, IsOptional, IsEnum, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { MemberStatus } from '../../../common/enums';
+import { IsPhoneNumber } from '../../../common/decorators/is-phone-number.decorator';
 
 export class UpdateMemberDto {
 	@ApiPropertyOptional({
@@ -14,12 +15,13 @@ export class UpdateMemberDto {
 	name?: string;
 
 	@ApiPropertyOptional({
-		description: '전화번호',
+		description: '전화번호 (한국 형식)',
 		example: '010-1234-5678',
 		maxLength: 50,
 	})
 	@IsOptional()
 	@IsString({ message: '전화번호는 문자열이어야 합니다.' })
+	@IsPhoneNumber({ message: '유효한 한국 전화번호 형식이어야 합니다. (예: 010-1234-5678, 02-1234-5678)' })
 	@MaxLength(50, { message: '전화번호는 50자 이하여야 합니다.' })
 	phone?: string;
 
