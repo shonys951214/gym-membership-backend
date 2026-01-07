@@ -31,6 +31,7 @@ import { UpdateWorkoutRecordDto } from './dto/update-workout-record.dto';
 import { WorkoutVolumeQueryDto } from './dto/workout-volume-query.dto';
 import { CreatePTSessionDto } from './dto/create-pt-session.dto';
 import { UpdatePTSessionDto } from './dto/update-pt-session.dto';
+import { DashboardResponseDto } from './dto/dashboard-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -354,7 +355,11 @@ export class MembersController {
 		summary: '대시보드 통합 데이터 조회',
 		description: '회원의 목표, 수업 진행률, 운동 캘린더, 운동 기록 분석을 통합하여 조회합니다.',
 	})
-	@ApiResponse({ status: 200, description: '대시보드 데이터 조회 성공' })
+	@ApiResponse({
+		status: 200,
+		description: '대시보드 데이터 조회 성공',
+		type: DashboardResponseDto,
+	})
 	async getDashboard(@Param('id') id: string) {
 		const dashboard = await this.membersService.getDashboard(id);
 		return ApiResponseHelper.success(dashboard, '대시보드 데이터 조회 성공');
