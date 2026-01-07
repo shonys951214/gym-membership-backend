@@ -161,11 +161,11 @@ AssessmentItem {
 - CARDIO 카테고리: [러닝머신: 65.0] → 평균: 65.0
 ```
 
-⚠️ **현재 미구현**: `FLEXIBILITY` 카테고리는 계산 로직에 포함되지 않음
+✅ **구현 완료**: `FLEXIBILITY` 카테고리 계산 로직 포함
 
-- DB 컬럼(`flexibility_score`)은 존재하지만, 점수 계산 시 제외됨
-- `calculateCategoryScores()`에서 FLEXIBILITY 케이스가 없음
-- 추후 구현 예정
+- DB 컬럼(`flexibility_score`) 존재
+- `calculateCategoryScores()`에서 FLEXIBILITY 케이스 처리
+- 카테고리별 평균 점수 계산에 포함
 
 ### 3단계: 부상 제한 영역 제외
 
@@ -178,10 +178,10 @@ AssessmentItem {
 - 어깨 부상 → STRENGTH 카테고리 → strengthScore = null
 ```
 
-⚠️ **현재 미구현**: `FLEXIBILITY` 카테고리는 부상 제한 처리에 포함되지 않음
+✅ **구현 완료**: `FLEXIBILITY` 카테고리 부상 제한 처리 포함
 
-- `excludeRestrictedCategories()`에서 FLEXIBILITY 케이스가 없음
-- 추후 구현 예정
+- `excludeRestrictedCategories()`에서 FLEXIBILITY 케이스 처리
+- 부상으로 인한 평가 제한 시 null로 처리
 
 ### 4단계: 종합 점수 계산 (가중 평균)
 
@@ -199,11 +199,11 @@ AssessmentItem {
 totalScore = (strengthScore * 0.3 + cardioScore * 0.25 + ...) / totalWeight
 ```
 
-⚠️ **현재 상태**:
+✅ **구현 완료**: `FLEXIBILITY` 카테고리 종합 점수 계산 포함
 
-- `flexibility_score`는 DB에 저장되지만 종합 점수 계산에 포함되지 않음
-- 가중치가 하드코딩되어 있음 (트레이너별 커스터마이징 불가)
-- 추후 가중치 커스터마이징 기능 추가 예정 (1차 피드백 참고)
+- `flexibility_score`는 DB에 저장되고 종합 점수 계산에 포함됨
+- 가중치: 유연성 15% (1차피드백 제안 가중치 반영)
+- 가중치가 하드코딩되어 있음 (트레이너별 커스터마이징 불가 - 추후 구현 예정)
 
 ### 5단계: 스냅샷 저장
 
@@ -395,29 +395,30 @@ ORDER BY assessed_at ASC;  -- 오래된 순서
 
 ## 🔍 추가 확인 사항
 
-### ⚠️ 유연성(FLEXIBILITY) 점수 - 부분 구현
+### ✅ 유연성(FLEXIBILITY) 점수 - 구현 완료
 
 **DB 구조**: ✅ 구현 완료
 
 - `ability_snapshots.flexibility_score` 컬럼 존재
 - `assessment_items.category`에 FLEXIBILITY 포함
 
-**점수 계산 로직**: ❌ 미구현
+**점수 계산 로직**: ✅ 구현 완료
 
-- `ScoreCalculator.calculateCategoryScores()`에서 FLEXIBILITY 케이스 없음
-- `ScoreCalculator.excludeRestrictedCategories()`에서 FLEXIBILITY 케이스 없음
-- `ScoreCalculator.calculateTotalScore()`에서 가중치 계산에 포함되지 않음
-- `CategoryScores` 인터페이스에 `flexibilityScore` 필드 없음
+- `ScoreCalculator.calculateCategoryScores()`에서 FLEXIBILITY 케이스 처리
+- `ScoreCalculator.excludeRestrictedCategories()`에서 FLEXIBILITY 케이스 처리
+- `ScoreCalculator.calculateTotalScore()`에서 가중치 계산에 포함 (15%)
+- `CategoryScores` 인터페이스에 `flexibilityScore` 필드 포함
 
 **결과**:
 
-- `flexibility_score`는 DB에 저장되지만 항상 `null` 또는 수동 입력값
-- 종합 점수(`total_score`) 계산에 포함되지 않음
+- `flexibility_score`는 DB에 저장되고 자동 계산됨
+- 종합 점수(`total_score`) 계산에 포함됨 (가중치 15%)
+- 차트 표시 가능
 
-**추후 작업**:
+**참고**:
 
-- 점수 계산 로직에 FLEXIBILITY 추가 필요
-- 가중치 결정 및 적용 필요
+- 평가 항목의 자세한 계산식(표준화 함수)은 추후 추가 예정 (3순위)
+- 현재는 다른 카테고리와 동일하게 `value`를 `score`로 사용
 
 ---
 

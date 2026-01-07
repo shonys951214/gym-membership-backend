@@ -10,6 +10,7 @@ interface CategoryScores {
   strengthScore?: number | null;
   cardioScore?: number | null;
   enduranceScore?: number | null;
+  flexibilityScore?: number | null; // 1차피드백: 유연성 추가
   bodyScore?: number | null;
   stabilityScore?: number | null;
 }
@@ -62,6 +63,9 @@ export class ScoreCalculator {
           case Category.ENDURANCE:
             categoryScores.enduranceScore = averageScore;
             break;
+          case Category.FLEXIBILITY:
+            categoryScores.flexibilityScore = averageScore;
+            break;
           case Category.BODY:
             categoryScores.bodyScore = averageScore;
             break;
@@ -99,6 +103,9 @@ export class ScoreCalculator {
         case Category.ENDURANCE:
           adjustedScores.enduranceScore = null;
           break;
+        case Category.FLEXIBILITY:
+          adjustedScores.flexibilityScore = null;
+          break;
         case Category.BODY:
           adjustedScores.bodyScore = null;
           break;
@@ -113,16 +120,18 @@ export class ScoreCalculator {
 
   /**
    * 종합 점수 계산 (null 값 제외)
-   * 가중치: 근력 30%, 심폐 25%, 지구력 20%, 신체 15%, 안정성 10%
+   * 가중치: 근력 25%, 심폐 20%, 지구력 20%, 유연성 15%, 체성분 10%, 안정성 10%
+   * 참고: 1차피드백 제안 가중치 (총합 100%)
    */
   private calculateTotalScore(
     categoryScores: CategoryScores,
   ): number {
     const weights = {
-      strength: 0.3,
-      cardio: 0.25,
+      strength: 0.25,
+      cardio: 0.2,
       endurance: 0.2,
-      body: 0.15,
+      flexibility: 0.15, // 1차피드백: 유연성 추가
+      body: 0.1,
       stability: 0.1,
     };
 
@@ -140,6 +149,10 @@ export class ScoreCalculator {
     if (categoryScores.enduranceScore !== null && categoryScores.enduranceScore !== undefined) {
       weightedSum += categoryScores.enduranceScore * weights.endurance;
       totalWeight += weights.endurance;
+    }
+    if (categoryScores.flexibilityScore !== null && categoryScores.flexibilityScore !== undefined) {
+      weightedSum += categoryScores.flexibilityScore * weights.flexibility;
+      totalWeight += weights.flexibility;
     }
     if (categoryScores.bodyScore !== null && categoryScores.bodyScore !== undefined) {
       weightedSum += categoryScores.bodyScore * weights.body;
@@ -207,6 +220,7 @@ export class ScoreCalculator {
         strengthScore: adjustedScores.strengthScore ?? undefined,
         cardioScore: adjustedScores.cardioScore ?? undefined,
         enduranceScore: adjustedScores.enduranceScore ?? undefined,
+        flexibilityScore: adjustedScores.flexibilityScore ?? undefined, // 1차피드백: 유연성 추가
         bodyScore: adjustedScores.bodyScore ?? undefined,
         stabilityScore: adjustedScores.stabilityScore ?? undefined,
         totalScore,

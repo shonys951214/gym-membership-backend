@@ -208,9 +208,9 @@
 | `strength_score` | FLOAT | 하체 근력 점수 | nullable |
 | `cardio_score` | FLOAT | 심폐 지구력 점수 | nullable |
 | `endurance_score` | FLOAT | 근지구력 점수 | nullable |
-| `flexibility_score` | FLOAT | 유연성 점수 | nullable ⚠️ |
+| `flexibility_score` | FLOAT | 유연성 점수 | nullable ✅ |
 
-⚠️ **부분 구현**: DB 컬럼은 존재하지만 점수 계산 로직에 포함되지 않음
+✅ **구현 완료**: DB 컬럼 존재 및 점수 계산 로직에 포함됨 (가중치 15%)
 | `body_score` | FLOAT | 체성분 밸런스 점수 | nullable |
 | `stability_score` | FLOAT | 부상 안정성 점수 | nullable |
 | `total_score` | FLOAT | 종합 점수 | NOT NULL |
@@ -423,9 +423,10 @@ members (회원)
 ## ⚠️ 미구현 및 추후 추가 예정 기능
 
 ### 1. 유연성(FLEXIBILITY) 점수 계산 로직
-- **상태**: DB 컬럼만 존재, 계산 로직 미구현
+- **상태**: ✅ 구현 완료
 - **위치**: `src/common/utils/score-calculator.ts`
-- **작업**: `calculateCategoryScores()`, `excludeRestrictedCategories()`, `calculateTotalScore()`에 FLEXIBILITY 추가 필요
+- **내용**: `calculateCategoryScores()`, `excludeRestrictedCategories()`, `calculateTotalScore()`에 FLEXIBILITY 포함됨
+- **가중치**: 15% (1차피드백 제안 가중치 반영)
 
 ### 2. 정적/동적 평가 데이터 활용
 - **상태**: DB 컬럼만 존재, 점수 계산에 미사용

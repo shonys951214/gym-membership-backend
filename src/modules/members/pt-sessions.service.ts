@@ -118,7 +118,7 @@ export class PTSessionsService {
 		if (updateDto.sessionDate) {
 			session.sessionDate = new Date(updateDto.sessionDate);
 		}
-		if (updateDto.mainContent) {
+		if (updateDto.mainContent !== undefined) {
 			session.mainContent = updateDto.mainContent;
 		}
 		if (updateDto.trainerComment !== undefined) {
