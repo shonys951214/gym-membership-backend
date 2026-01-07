@@ -205,7 +205,7 @@ export class InsightsService {
 					enduranceScore: acc.enduranceScore + (snapshot.enduranceScore || 0),
 					bodyScore: acc.bodyScore + (snapshot.bodyScore || 0),
 					stabilityScore: acc.stabilityScore + (snapshot.stabilityScore || 0),
-					totalScore: acc.totalScore + snapshot.totalScore,
+					totalScore: acc.totalScore + (snapshot.totalScore ?? 0),
 				}),
 				{
 					strengthScore: 0,
@@ -237,7 +237,7 @@ export class InsightsService {
 			enduranceScore: thisWeek.enduranceScore - lastWeek.enduranceScore,
 			bodyScore: thisWeek.bodyScore - lastWeek.bodyScore,
 			stabilityScore: thisWeek.stabilityScore - lastWeek.stabilityScore,
-			totalScore: thisWeek.totalScore - lastWeek.totalScore,
+			totalScore: (thisWeek.totalScore ?? 0) - (lastWeek.totalScore ?? 0),
 		};
 
 		const percentageChange = {
@@ -246,7 +246,7 @@ export class InsightsService {
 			enduranceScore: lastWeek.enduranceScore !== 0 ? (changes.enduranceScore / lastWeek.enduranceScore) * 100 : 0,
 			bodyScore: lastWeek.bodyScore !== 0 ? (changes.bodyScore / lastWeek.bodyScore) * 100 : 0,
 			stabilityScore: lastWeek.stabilityScore !== 0 ? (changes.stabilityScore / lastWeek.stabilityScore) * 100 : 0,
-			totalScore: lastWeek.totalScore !== 0 ? (changes.totalScore / lastWeek.totalScore) * 100 : 0,
+			totalScore: (lastWeek.totalScore ?? 0) !== 0 ? (changes.totalScore / (lastWeek.totalScore ?? 0)) * 100 : 0,
 		};
 
 		return {
@@ -256,7 +256,7 @@ export class InsightsService {
 				enduranceScore: Math.round(thisWeek.enduranceScore),
 				bodyScore: Math.round(thisWeek.bodyScore),
 				stabilityScore: Math.round(thisWeek.stabilityScore),
-				totalScore: Math.round(thisWeek.totalScore),
+				totalScore: Math.round(thisWeek.totalScore ?? 0),
 			},
 			lastWeek: {
 				strengthScore: Math.round(lastWeek.strengthScore),
@@ -264,7 +264,7 @@ export class InsightsService {
 				enduranceScore: Math.round(lastWeek.enduranceScore),
 				bodyScore: Math.round(lastWeek.bodyScore),
 				stabilityScore: Math.round(lastWeek.stabilityScore),
-				totalScore: Math.round(lastWeek.totalScore),
+				totalScore: Math.round(lastWeek.totalScore ?? 0),
 			},
 			changes: {
 				strengthScore: Math.round(changes.strengthScore),
@@ -272,7 +272,7 @@ export class InsightsService {
 				enduranceScore: Math.round(changes.enduranceScore),
 				bodyScore: Math.round(changes.bodyScore),
 				stabilityScore: Math.round(changes.stabilityScore),
-				totalScore: Math.round(changes.totalScore),
+				totalScore: Math.round(changes.totalScore ?? 0),
 			},
 			percentageChange: {
 				strengthScore: Math.round(percentageChange.strengthScore * 100) / 100,
@@ -280,7 +280,7 @@ export class InsightsService {
 				enduranceScore: Math.round(percentageChange.enduranceScore * 100) / 100,
 				bodyScore: Math.round(percentageChange.bodyScore * 100) / 100,
 				stabilityScore: Math.round(percentageChange.stabilityScore * 100) / 100,
-				totalScore: Math.round(percentageChange.totalScore * 100) / 100,
+				totalScore: Math.round((percentageChange.totalScore ?? 0) * 100) / 100,
 			},
 		};
 	}
@@ -306,8 +306,12 @@ export class InsightsService {
 				const current = snapshots[0];
 				const previous = snapshots[1];
 
-				if (current.totalScore && previous.totalScore) {
-					const declinePercentage = ((previous.totalScore - current.totalScore) / previous.totalScore) * 100;
+				// totalScore가 undefined일 수 있으므로 nullish coalescing 사용
+				const currentTotalScore = current.totalScore ?? 0;
+				const previousTotalScore = previous.totalScore ?? 0;
+
+				if (currentTotalScore > 0 && previousTotalScore > 0) {
+					const declinePercentage = ((previousTotalScore - currentTotalScore) / previousTotalScore) * 100;
 
 					// 10% 이상 하락 시 위험 신호
 					if (declinePercentage >= 10) {
@@ -316,8 +320,8 @@ export class InsightsService {
 							memberName: member.name,
 							riskType: "DECLINE",
 							description: `능력치가 ${Math.round(declinePercentage)}% 하락했습니다.`,
-							currentScore: current.totalScore,
-							previousScore: previous.totalScore,
+							currentScore: currentTotalScore,
+							previousScore: previousTotalScore,
 							declinePercentage: Math.round(declinePercentage),
 						});
 					}

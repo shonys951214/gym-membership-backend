@@ -23,6 +23,12 @@ export class AbilitiesController {
 	@ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
 	async getLatestSnapshot(@Param("memberId") memberId: string) {
 		const snapshot = await this.assessmentsService.getLatestSnapshot(memberId);
+		
+		// snapshot이 null이면 기본값 반환 (프론트엔드 오류 방지)
+		if (!snapshot) {
+			return ApiResponseHelper.success(null, "능력치 스냅샷이 없습니다.");
+		}
+		
 		return ApiResponseHelper.success(snapshot, "최신 능력치 조회 성공");
 	}
 

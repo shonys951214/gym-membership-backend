@@ -74,7 +74,7 @@ export class AnalyticsService {
       averages.flexibilityScore += snapshot.flexibilityScore || 0; // 1차피드백: 유연성 추가
       averages.bodyScore += snapshot.bodyScore || 0;
       averages.stabilityScore += snapshot.stabilityScore || 0;
-      averages.totalScore += snapshot.totalScore || 0;
+      averages.totalScore += snapshot.totalScore ?? 0;
     });
 
     const count = validSnapshots.length;
@@ -153,7 +153,7 @@ export class AnalyticsService {
         averages.stabilityScore,
       ),
       totalScore: this.calculatePercentile(
-        memberSnapshot.totalScore,
+        memberSnapshot.totalScore ?? 0,
         averages.totalScore,
       ),
     };
