@@ -295,6 +295,57 @@ export class MembersController {
 	}
 
 	// 1차피드백: 운동 기록 (프론트엔드 요청사항 반영)
+	// 중요: 구체적인 라우트를 동적 라우트(:recordId)보다 먼저 정의해야 함
+	@Get(':id/workout-records/calendar')
+	@ApiOperation({
+		summary: '운동 캘린더 조회',
+		description: '지정된 기간의 운동 캘린더를 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: '운동 캘린더 조회 성공' })
+	async getWorkoutCalendar(
+		@Param('id') id: string,
+		@Query('startDate') startDate: string,
+		@Query('endDate') endDate: string,
+	) {
+		const calendar = await this.workoutRecordsService.getCalendar(id, startDate, endDate);
+		return ApiResponseHelper.success(calendar, '운동 캘린더 조회 성공');
+	}
+
+	@Get(':id/workout-records/volume-analysis')
+	@ApiOperation({
+		summary: '운동 기록 볼륨 분석',
+		description: '회원의 부위별 운동 볼륨을 주간/월간으로 분석합니다.',
+	})
+	@ApiResponse({ status: 200, description: '볼륨 분석 조회 성공' })
+	async getWorkoutVolumeAnalysis(
+		@Param('id') id: string,
+		@Query('period') period?: 'WEEKLY' | 'MONTHLY',
+		@Query('startDate') startDate?: string,
+		@Query('endDate') endDate?: string,
+	) {
+		const analysis = await this.workoutRecordsService.getVolumeAnalysis(
+			id,
+			period,
+			startDate,
+			endDate,
+		);
+		return ApiResponseHelper.success(analysis, '볼륨 분석 조회 성공');
+	}
+
+	@Get(':id/workout-records/volume')
+	@ApiOperation({
+		summary: '부위별 볼륨 조회 (하위 호환성)',
+		description: '회원의 부위별 운동 볼륨을 주간/월간으로 조회합니다. (기존 API 유지)',
+	})
+	@ApiResponse({ status: 200, description: '부위별 볼륨 조회 성공' })
+	async getWorkoutVolume(
+		@Param('id') id: string,
+		@Query() query: WorkoutVolumeQueryDto,
+	) {
+		const volume = await this.workoutRecordsService.getVolumeByBodyPart(id, query);
+		return ApiResponseHelper.success(volume, '부위별 볼륨 조회 성공');
+	}
+
 	@Get(':id/workout-records')
 	@ApiOperation({
 		summary: '운동 기록 목록 조회',
@@ -332,56 +383,6 @@ export class MembersController {
 	) {
 		const record = await this.workoutRecordsService.findOne(recordId, id);
 		return ApiResponseHelper.success(record, '운동 기록 상세 조회 성공');
-	}
-
-	@Get(':id/workout-records/volume-analysis')
-	@ApiOperation({
-		summary: '운동 기록 볼륨 분석',
-		description: '회원의 부위별 운동 볼륨을 주간/월간으로 분석합니다.',
-	})
-	@ApiResponse({ status: 200, description: '볼륨 분석 조회 성공' })
-	async getWorkoutVolumeAnalysis(
-		@Param('id') id: string,
-		@Query('period') period?: 'WEEKLY' | 'MONTHLY',
-		@Query('startDate') startDate?: string,
-		@Query('endDate') endDate?: string,
-	) {
-		const analysis = await this.workoutRecordsService.getVolumeAnalysis(
-			id,
-			period,
-			startDate,
-			endDate,
-		);
-		return ApiResponseHelper.success(analysis, '볼륨 분석 조회 성공');
-	}
-
-	@Get(':id/workout-records/calendar')
-	@ApiOperation({
-		summary: '운동 캘린더 조회',
-		description: '지정된 기간의 운동 캘린더를 조회합니다.',
-	})
-	@ApiResponse({ status: 200, description: '운동 캘린더 조회 성공' })
-	async getWorkoutCalendar(
-		@Param('id') id: string,
-		@Query('startDate') startDate: string,
-		@Query('endDate') endDate: string,
-	) {
-		const calendar = await this.workoutRecordsService.getCalendar(id, startDate, endDate);
-		return ApiResponseHelper.success(calendar, '운동 캘린더 조회 성공');
-	}
-
-	@Get(':id/workout-records/volume')
-	@ApiOperation({
-		summary: '부위별 볼륨 조회 (하위 호환성)',
-		description: '회원의 부위별 운동 볼륨을 주간/월간으로 조회합니다. (기존 API 유지)',
-	})
-	@ApiResponse({ status: 200, description: '부위별 볼륨 조회 성공' })
-	async getWorkoutVolume(
-		@Param('id') id: string,
-		@Query() query: WorkoutVolumeQueryDto,
-	) {
-		const volume = await this.workoutRecordsService.getVolumeByBodyPart(id, query);
-		return ApiResponseHelper.success(volume, '부위별 볼륨 조회 성공');
 	}
 
 	@Post(':id/workout-records')

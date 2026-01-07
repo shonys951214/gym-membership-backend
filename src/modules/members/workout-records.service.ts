@@ -1,12 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { WorkoutRecord, WorkoutType } from '../../entities/workout-record.entity';
 import { Member } from '../../entities/member.entity';
+import { PTUsage } from '../../entities/pt-usage.entity';
 import { CreateWorkoutRecordDto } from './dto/create-workout-record.dto';
 import { UpdateWorkoutRecordDto } from './dto/update-workout-record.dto';
 import { WorkoutVolumeQueryDto, VolumePeriod } from './dto/workout-volume-query.dto';
 import { ApiExceptions } from '../../common/exceptions';
+import { PTSessionsService } from './pt-sessions.service';
+import { MembersService } from './members.service';
 
 @Injectable()
 export class WorkoutRecordsService {
@@ -17,6 +20,12 @@ export class WorkoutRecordsService {
 		private workoutRecordRepository: Repository<WorkoutRecord>,
 		@InjectRepository(Member)
 		private memberRepository: Repository<Member>,
+		@InjectRepository(PTUsage)
+		private ptUsageRepository: Repository<PTUsage>,
+		@Inject(forwardRef(() => PTSessionsService))
+		private ptSessionsService: PTSessionsService,
+		@Inject(forwardRef(() => MembersService))
+		private membersService: MembersService,
 	) {}
 
 	async findAll(
@@ -88,6 +97,68 @@ export class WorkoutRecordsService {
 		// 볼륨 자동 계산
 		const volume = weight * reps * sets;
 
+		// PT 타입이고 ptSessionId가 없으면 자동으로 PT 세션 생성 및 횟수 차감
+		let ptSessionId = createDto.ptSessionId;
+		if (workoutType === WorkoutType.PT && !ptSessionId) {
+			// PT 횟수 확인 (PTUsage가 없거나 남은 횟수가 0이면 에러)
+			const ptUsage = await this.ptUsageRepository.findOne({
+				where: { memberId },
+				order: { createdAt: 'DESC' },
+			});
+
+			if (!ptUsage) {
+				this.logger.warn(
+					`PT 횟수 정보가 없습니다. PT 운동 기록을 생성할 수 없습니다. (MemberId: ${memberId})`,
+				);
+				throw ApiExceptions.badRequest(
+					'PT 횟수 정보가 없습니다. PT 세션 및 횟수 관리에서 먼저 PT 횟수를 추가해주세요.',
+				);
+			}
+
+			if (ptUsage.remainingCount <= 0) {
+				this.logger.warn(
+					`PT 횟수가 부족합니다. 남은 횟수: ${ptUsage.remainingCount} (MemberId: ${memberId})`,
+				);
+				throw ApiExceptions.badRequest(
+					`PT 횟수가 부족합니다. 남은 횟수: ${ptUsage.remainingCount}회. PT 세션 및 횟수 관리에서 횟수를 추가해주세요.`,
+				);
+			}
+
+			// PT 횟수 차감 (먼저 차감하여 중복 방지)
+			ptUsage.remainingCount -= 1;
+			ptUsage.usedCount += 1;
+			ptUsage.lastUsedDate = new Date(createDto.workoutDate);
+			await this.ptUsageRepository.save(ptUsage);
+			this.logger.log(
+				`PT 횟수 자동 차감: 남은 횟수 ${ptUsage.remainingCount} (MemberId: ${memberId})`,
+			);
+
+			// PT 세션 자동 생성
+			try {
+				const ptSession = await this.ptSessionsService.create(memberId, {
+					sessionDate: createDto.workoutDate,
+					mainContent: `${createDto.exerciseName} - ${createDto.bodyPart}`,
+					trainerComment: createDto.trainerComment,
+				});
+
+				ptSessionId = ptSession.id;
+				this.logger.log(
+					`PT 운동 기록 생성 시 자동으로 PT 세션 생성됨: ${ptSessionId} (MemberId: ${memberId})`,
+				);
+			} catch (error) {
+				// PT 세션 생성 실패 시 횟수 복구
+				ptUsage.remainingCount += 1;
+				ptUsage.usedCount -= 1;
+				await this.ptUsageRepository.save(ptUsage);
+				this.logger.error(
+					`PT 세션 자동 생성 실패. PT 횟수 복구됨: ${error.message} (MemberId: ${memberId})`,
+				);
+				throw ApiExceptions.badRequest(
+					`PT 세션 생성에 실패했습니다: ${error.message}`,
+				);
+			}
+		}
+
 		const record = this.workoutRecordRepository.create({
 			memberId,
 			workoutDate: new Date(createDto.workoutDate),
@@ -99,7 +170,7 @@ export class WorkoutRecordsService {
 			volume,
 			duration: createDto.duration,
 			workoutType,
-			ptSessionId: createDto.ptSessionId,
+			ptSessionId,
 			trainerComment: createDto.trainerComment,
 		});
 
@@ -153,6 +224,35 @@ export class WorkoutRecordsService {
 
 	async remove(id: string, memberId: string): Promise<void> {
 		const record = await this.findOne(id, memberId);
+
+		// PT 타입이고 ptSessionId가 있으면 PT 세션도 삭제하고 횟수 복구
+		if (record.workoutType === WorkoutType.PT && record.ptSessionId) {
+			try {
+				// PT 세션 삭제 (Member의 completedSessions 자동 감소됨)
+				await this.ptSessionsService.remove(record.ptSessionId, memberId);
+
+				// PT 횟수 복구 (PTUsage 업데이트)
+				const ptUsage = await this.ptUsageRepository.findOne({
+					where: { memberId },
+					order: { createdAt: 'DESC' },
+				});
+
+				if (ptUsage) {
+					ptUsage.remainingCount += 1;
+					ptUsage.usedCount = Math.max(0, ptUsage.usedCount - 1);
+					await this.ptUsageRepository.save(ptUsage);
+					this.logger.log(
+						`PT 횟수 복구: 남은 횟수 ${ptUsage.remainingCount} (MemberId: ${memberId})`,
+					);
+				}
+			} catch (error) {
+				this.logger.error(
+					`PT 세션 삭제 실패: ${error.message} (MemberId: ${memberId}, SessionId: ${record.ptSessionId})`,
+				);
+				// PT 세션 삭제 실패해도 운동 기록은 삭제
+			}
+		}
+
 		await this.workoutRecordRepository.remove(record);
 	}
 

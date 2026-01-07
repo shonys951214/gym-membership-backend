@@ -97,6 +97,10 @@ export class ApiExceptions {
 		return new ApiException('VALIDATION_ERROR', message, HttpStatus.BAD_REQUEST);
 	}
 
+	static badRequest(message: string = '잘못된 요청입니다.'): ApiException {
+		return new ApiException('BAD_REQUEST', message, HttpStatus.BAD_REQUEST);
+	}
+
 	// 서버 관련
 	static internalServerError(message: string = '서버 오류가 발생했습니다.'): ApiException {
 		return new ApiException('INTERNAL_SERVER_ERROR', message, HttpStatus.INTERNAL_SERVER_ERROR);
