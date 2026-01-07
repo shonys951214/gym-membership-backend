@@ -12,6 +12,8 @@ import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { UpdatePTUsageDto } from './dto/update-pt-usage.dto';
+import { UpdateGoalDto } from './dto/update-goal.dto';
+import { WorkoutVolumeQueryDto, VolumePeriod } from './dto/workout-volume-query.dto';
 import { ApiExceptions } from '../../common/exceptions';
 
 @Injectable()
@@ -179,6 +181,258 @@ export class MembersService {
 		}
 
 		await this.membershipRepository.remove(membership);
+	}
+
+	// 1차피드백: 목표 관리
+	async getGoal(memberId: string): Promise<{
+		goal?: string;
+		goalProgress: number;
+		goalTrainerComment?: string;
+		totalSessions: number;
+		completedSessions: number;
+		progressPercentage: number; // 수업 진행률 (completedSessions / totalSessions * 100)
+	}> {
+		const member = await this.findOne(memberId);
+
+		const progressPercentage =
+			member.totalSessions > 0
+				? Math.round((member.completedSessions / member.totalSessions) * 100)
+				: 0;
+
+		return {
+			goal: member.goal,
+			goalProgress: member.goalProgress,
+			goalTrainerComment: member.goalTrainerComment,
+			totalSessions: member.totalSessions,
+			completedSessions: member.completedSessions,
+			progressPercentage,
+		};
+	}
+
+	async updateGoal(memberId: string, updateGoalDto: UpdateGoalDto): Promise<Member> {
+		const member = await this.findOne(memberId);
+
+		// goalProgress 범위 검증
+		if (updateGoalDto.goalProgress !== undefined) {
+			if (updateGoalDto.goalProgress < 0 || updateGoalDto.goalProgress > 100) {
+				throw ApiExceptions.validationError('목표 진행률은 0-100 사이의 값이어야 합니다.');
+			}
+		}
+
+		// completedSessions가 totalSessions를 초과하지 않도록 검증
+		if (
+			updateGoalDto.completedSessions !== undefined &&
+			updateGoalDto.totalSessions !== undefined
+		) {
+			if (updateGoalDto.completedSessions > updateGoalDto.totalSessions) {
+				throw ApiExceptions.validationError(
+					'완료된 수업 회차는 총 수업 회차를 초과할 수 없습니다.',
+				);
+			}
+		} else if (updateGoalDto.completedSessions !== undefined) {
+			if (updateGoalDto.completedSessions > member.totalSessions) {
+				throw ApiExceptions.validationError(
+					'완료된 수업 회차는 총 수업 회차를 초과할 수 없습니다.',
+				);
+			}
+		}
+
+		Object.assign(member, updateGoalDto);
+
+		return this.memberRepository.save(member);
+	}
+
+	// 1차피드백: 대시보드 통합
+	async getDashboard(memberId: string): Promise<{
+		goal: {
+			goal?: string;
+			goalProgress: number;
+			goalTrainerComment?: string;
+		};
+		sessionProgress: {
+			totalSessions: number;
+			completedSessions: number;
+			progressPercentage: number;
+		};
+		workoutCalendar: Array<{
+			date: string;
+			ptSessions: Array<{
+				id: string;
+				sessionNumber: number;
+				mainContent: string;
+			}>;
+			personalWorkouts: Array<{
+				id: string;
+				exerciseName: string;
+				bodyPart: string;
+			}>;
+		}>;
+		workoutAnalysis: {
+			period: 'week' | 'month';
+			bodyPartVolumes: Array<{
+				bodyPart: string;
+				volume: number;
+			}>;
+			totalVolume: number;
+		};
+	}> {
+		const member = await this.findOne(memberId);
+
+		// 목표 정보
+		const goal = {
+			goal: member.goal,
+			goalProgress: member.goalProgress,
+			goalTrainerComment: member.goalTrainerComment,
+		};
+
+		// 수업 진행률
+		const progressPercentage =
+			member.totalSessions > 0
+				? Math.round((member.completedSessions / member.totalSessions) * 100)
+				: 0;
+
+		const sessionProgress = {
+			totalSessions: member.totalSessions,
+			completedSessions: member.completedSessions,
+			progressPercentage,
+		};
+
+		// 운동 캘린더 (최근 30일)
+		const now = new Date();
+		const thirtyDaysAgo = new Date(now);
+		thirtyDaysAgo.setDate(now.getDate() - 30);
+
+		// PT 세션과 운동 기록을 함께 조회
+		const ptSessions = await this.memberRepository.manager.query(`
+			SELECT 
+				id,
+				session_number as "sessionNumber",
+				session_date as "sessionDate",
+				main_content as "mainContent"
+			FROM pt_sessions
+			WHERE member_id = $1
+				AND session_date >= $2
+				AND session_date <= $3
+			ORDER BY session_date DESC
+		`, [memberId, thirtyDaysAgo.toISOString().split('T')[0], now.toISOString().split('T')[0]]);
+
+		const workoutRecords = await this.memberRepository.manager.query(`
+			SELECT 
+				id,
+				workout_date as "workoutDate",
+				exercise_name as "exerciseName",
+				body_part as "bodyPart",
+				workout_type as "workoutType"
+			FROM workout_records
+			WHERE member_id = $1
+				AND workout_date >= $2
+				AND workout_date <= $3
+			ORDER BY workout_date DESC
+		`, [memberId, thirtyDaysAgo.toISOString().split('T')[0], now.toISOString().split('T')[0]]);
+
+		// 날짜별로 그룹화
+		const calendarMap = new Map<string, {
+			date: string;
+			ptSessions: any[];
+			personalWorkouts: any[];
+		}>();
+
+		ptSessions.forEach((session: any) => {
+			const date = session.sessionDate;
+			if (!calendarMap.has(date)) {
+				calendarMap.set(date, {
+					date,
+					ptSessions: [],
+					personalWorkouts: [],
+				});
+			}
+			calendarMap.get(date)!.ptSessions.push({
+				id: session.id,
+				sessionNumber: session.sessionNumber,
+				mainContent: session.mainContent,
+			});
+		});
+
+		workoutRecords.forEach((record: any) => {
+			const date = record.workoutDate;
+			if (!calendarMap.has(date)) {
+				calendarMap.set(date, {
+					date,
+					ptSessions: [],
+					personalWorkouts: [],
+				});
+			}
+			if (record.workoutType === 'PERSONAL') {
+				calendarMap.get(date)!.personalWorkouts.push({
+					id: record.id,
+					exerciseName: record.exerciseName,
+					bodyPart: record.bodyPart,
+				});
+			}
+		});
+
+		const workoutCalendar = Array.from(calendarMap.values())
+			.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+		// 운동 기록 분석 (주간)
+		const workoutAnalysis = await this.getWorkoutVolumeAnalysis(memberId, VolumePeriod.WEEK);
+
+		return {
+			goal,
+			sessionProgress,
+			workoutCalendar,
+			workoutAnalysis,
+		};
+	}
+
+	private async getWorkoutVolumeAnalysis(
+		memberId: string,
+		period: VolumePeriod,
+	): Promise<{
+		period: 'week' | 'month';
+		bodyPartVolumes: Array<{ bodyPart: string; volume: number }>;
+		totalVolume: number;
+	}> {
+		const now = new Date();
+		let startDate: Date;
+
+		if (period === VolumePeriod.WEEK) {
+			const dayOfWeek = now.getDay();
+			const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+			startDate = new Date(now);
+			startDate.setDate(now.getDate() - diff);
+			startDate.setHours(0, 0, 0, 0);
+		} else {
+			startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+		}
+
+		const endDate = new Date(now);
+		endDate.setHours(23, 59, 59, 999);
+
+		const records = await this.memberRepository.manager.query(`
+			SELECT 
+				body_part as "bodyPart",
+				SUM(volume) as volume
+			FROM workout_records
+			WHERE member_id = $1
+				AND workout_date >= $2
+				AND workout_date <= $3
+			GROUP BY body_part
+			ORDER BY volume DESC
+		`, [memberId, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]);
+
+		const bodyPartVolumes = records.map((r: any) => ({
+			bodyPart: r.bodyPart,
+			volume: Math.round(parseFloat(r.volume) * 100) / 100,
+		}));
+
+		const totalVolume = bodyPartVolumes.reduce((sum, item) => sum + item.volume, 0);
+
+		return {
+			period,
+			bodyPartVolumes,
+			totalVolume: Math.round(totalVolume * 100) / 100,
+		};
 	}
 }
 

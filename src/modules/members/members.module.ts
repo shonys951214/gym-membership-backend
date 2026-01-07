@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { MembersController } from "./members.controller";
 import { MembersService } from "./members.service";
+import { WorkoutRecordsService } from "./workout-records.service";
+import { PTSessionsService } from "./pt-sessions.service";
 import { InjuriesController } from "./injuries.controller";
 import { AbilitiesController } from "./abilities.controller";
 import { MemberAnalyticsController } from "./analytics.controller";
@@ -11,6 +13,8 @@ import { PTUsage } from "../../entities/pt-usage.entity";
 import { InjuryHistory } from "../../entities/injury-history.entity";
 import { InjuryRestriction } from "../../entities/injury-restriction.entity";
 import { AbilitySnapshot } from "../../entities/ability-snapshot.entity";
+import { WorkoutRecord } from "../../entities/workout-record.entity";
+import { PTSession } from "../../entities/pt-session.entity";
 import { AssessmentsModule } from "../assessments/assessments.module";
 
 @Module({
@@ -22,6 +26,8 @@ import { AssessmentsModule } from "../assessments/assessments.module";
 			InjuryHistory,
 			InjuryRestriction,
 			AbilitySnapshot,
+			WorkoutRecord,
+			PTSession,
 		]),
 		AssessmentsModule,
 	],
@@ -31,8 +37,8 @@ import { AssessmentsModule } from "../assessments/assessments.module";
 		AbilitiesController,
 		MemberAnalyticsController,
 	],
-	providers: [MembersService],
-	exports: [MembersService],
+	providers: [MembersService, WorkoutRecordsService, PTSessionsService],
+	exports: [MembersService, WorkoutRecordsService, PTSessionsService],
 })
 export class MembersModule {}
 

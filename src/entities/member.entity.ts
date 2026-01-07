@@ -13,6 +13,8 @@ import { InjuryHistory } from './injury-history.entity';
 import { Membership } from './membership.entity';
 import { PTUsage } from './pt-usage.entity';
 import { AbilitySnapshot } from './ability-snapshot.entity';
+import { WorkoutRecord } from './workout-record.entity';
+import { PTSession } from './pt-session.entity';
 import { MemberStatus } from '../common/enums';
 
 @Index('idx_members_email', ['email'])
@@ -42,6 +44,22 @@ export class Member {
   })
   status: MemberStatus;
 
+  // 1차피드백: 목표 관리 필드
+  @Column({ type: 'text', nullable: true })
+  goal?: string; // 회원의 목표 한줄 요약
+
+  @Column({ type: 'int', name: 'goal_progress', default: 0 })
+  goalProgress: number; // 진행률 0-100
+
+  @Column({ type: 'text', name: 'goal_trainer_comment', nullable: true })
+  goalTrainerComment?: string; // 트레이너 동기부여 코멘트
+
+  @Column({ type: 'int', name: 'total_sessions', default: 0 })
+  totalSessions: number; // 총 수업 회차
+
+  @Column({ type: 'int', name: 'completed_sessions', default: 0 })
+  completedSessions: number; // 완료된 수업 회차
+
   @OneToMany(() => Assessment, (assessment) => assessment.member)
   assessments: Assessment[];
 
@@ -56,6 +74,14 @@ export class Member {
 
   @OneToMany(() => AbilitySnapshot, (snapshot) => snapshot.member)
   abilitySnapshots: AbilitySnapshot[];
+
+  // 1차피드백: 운동 기록
+  @OneToMany(() => WorkoutRecord, (workoutRecord) => workoutRecord.member)
+  workoutRecords: WorkoutRecord[];
+
+  // 1차피드백: PT 세션
+  @OneToMany(() => PTSession, (ptSession) => ptSession.member)
+  ptSessions: PTSession[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
