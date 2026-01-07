@@ -15,6 +15,12 @@ export const ErrorCodes = {
   // 부상 관련
   INJURY_NOT_FOUND: 'INJURY_NOT_FOUND',
 
+  // 목표 관련
+  GOAL_NOT_FOUND: 'GOAL_NOT_FOUND',
+
+  // 운동 루틴 관련
+  ROUTINE_NOT_FOUND: 'ROUTINE_NOT_FOUND',
+
   // 검증 관련
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   INVALID_INPUT: 'INVALID_INPUT',

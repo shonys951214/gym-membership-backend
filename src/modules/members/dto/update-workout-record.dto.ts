@@ -72,5 +72,33 @@ export class UpdateWorkoutRecordDto {
 	@IsOptional()
 	@IsEnum(WorkoutType)
 	workoutType?: WorkoutType;
+
+	@ApiProperty({
+		description: '운동 시간 (분)',
+		example: 30,
+		required: false,
+	})
+	@IsOptional()
+	@IsNumber()
+	@Min(0)
+	duration?: number;
+
+	@ApiProperty({
+		description: 'PT 세션 ID (workoutType이 PT인 경우)',
+		example: 'uuid',
+		required: false,
+	})
+	@IsOptional()
+	@IsString()
+	ptSessionId?: string;
+
+	@ApiProperty({
+		description: '트레이너 코멘트',
+		example: '좋은 자세',
+		required: false,
+	})
+	@IsOptional()
+	@IsString()
+	trainerComment?: string;
 }
 

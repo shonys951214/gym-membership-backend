@@ -11,6 +11,7 @@ import { InjuryHistory } from '../entities/injury-history.entity';
 import { InjuryRestriction } from '../entities/injury-restriction.entity';
 import { WorkoutRecord } from '../entities/workout-record.entity';
 import { PTSession } from '../entities/pt-session.entity';
+import { WorkoutRoutine } from '../entities/workout-routine.entity';
 
 export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOptions => {
 	const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
@@ -31,6 +32,7 @@ export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOp
 			InjuryRestriction,
 			WorkoutRecord,
 			PTSession,
+			WorkoutRoutine,
 		],
 		migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 		synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',

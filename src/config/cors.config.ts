@@ -3,9 +3,16 @@ import { ConfigService } from '@nestjs/config';
 
 export const getCorsConfig = (configService: ConfigService): CorsOptions => {
 	const frontendUrl = configService.get<string>('FRONTEND_URL');
+	
+	// 기본 허용 origin 목록 (프론트엔드 배포 주소 포함)
+	const defaultOrigins = [
+		'http://localhost:3000',
+		'https://gym-admin-mu.vercel.app', // 프론트엔드 배포 주소
+	];
+	
 	const allowedOrigins = frontendUrl
-		? frontendUrl.split(',').map((url) => url.trim())
-		: ['http://localhost:3000'];
+		? [...defaultOrigins, ...frontendUrl.split(',').map((url) => url.trim())]
+		: defaultOrigins;
 
 	const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
 

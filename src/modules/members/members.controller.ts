@@ -20,17 +20,21 @@ import {
 import { MembersService } from './members.service';
 import { WorkoutRecordsService } from './workout-records.service';
 import { PTSessionsService } from './pt-sessions.service';
+import { WorkoutRoutinesService } from './workout-routines.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { UpdateMembershipDto } from './dto/update-membership.dto';
 import { UpdatePTUsageDto } from './dto/update-pt-usage.dto';
 import { UpdateGoalDto } from './dto/update-goal.dto';
+import { CreateGoalDto } from './dto/create-goal.dto';
 import { CreateWorkoutRecordDto } from './dto/create-workout-record.dto';
 import { UpdateWorkoutRecordDto } from './dto/update-workout-record.dto';
 import { WorkoutVolumeQueryDto } from './dto/workout-volume-query.dto';
 import { CreatePTSessionDto } from './dto/create-pt-session.dto';
 import { UpdatePTSessionDto } from './dto/update-pt-session.dto';
+import { CreateWorkoutRoutineDto } from './dto/create-workout-routine.dto';
+import { UpdateWorkoutRoutineDto } from './dto/update-workout-routine.dto';
 import { DashboardResponseDto } from './dto/dashboard-response.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -47,6 +51,7 @@ export class MembersController {
     private readonly membersService: MembersService,
     private readonly workoutRecordsService: WorkoutRecordsService,
     private readonly ptSessionsService: PTSessionsService,
+    private readonly workoutRoutinesService: WorkoutRoutinesService,
   ) {}
 
   @Get()
@@ -211,22 +216,86 @@ export class MembersController {
 		return ApiResponseHelper.success(member, '목표 수정 성공');
 	}
 
-	// 1차피드백: 운동 기록
+	// 1차피드백: 운동 기록 (프론트엔드 요청사항 반영)
 	@Get(':id/workout-records')
 	@ApiOperation({
 		summary: '운동 기록 목록 조회',
-		description: '회원의 모든 운동 기록을 조회합니다.',
+		description: '회원의 운동 기록을 조회합니다. 페이지네이션 및 날짜 필터링 지원.',
 	})
 	@ApiResponse({ status: 200, description: '운동 기록 목록 조회 성공' })
-	async getWorkoutRecords(@Param('id') id: string) {
-		const records = await this.workoutRecordsService.findAll(id);
-		return ApiResponseHelper.success({ records, total: records.length }, '운동 기록 목록 조회 성공');
+	async getWorkoutRecords(
+		@Param('id') id: string,
+		@Query('page') page?: string,
+		@Query('pageSize') pageSize?: string,
+		@Query('startDate') startDate?: string,
+		@Query('endDate') endDate?: string,
+	) {
+		const pageNum = page ? parseInt(page, 10) : 1;
+		const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 10;
+		const result = await this.workoutRecordsService.findAll(
+			id,
+			pageNum,
+			pageSizeNum,
+			startDate,
+			endDate,
+		);
+		return ApiResponseHelper.success(result, '운동 기록 목록 조회 성공');
+	}
+
+	@Get(':id/workout-records/:recordId')
+	@ApiOperation({
+		summary: '운동 기록 상세 조회',
+		description: '특정 운동 기록의 상세 정보를 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: '운동 기록 상세 조회 성공' })
+	async getWorkoutRecord(
+		@Param('id') id: string,
+		@Param('recordId') recordId: string,
+	) {
+		const record = await this.workoutRecordsService.findOne(recordId, id);
+		return ApiResponseHelper.success(record, '운동 기록 상세 조회 성공');
+	}
+
+	@Get(':id/workout-records/volume-analysis')
+	@ApiOperation({
+		summary: '운동 기록 볼륨 분석',
+		description: '회원의 부위별 운동 볼륨을 주간/월간으로 분석합니다.',
+	})
+	@ApiResponse({ status: 200, description: '볼륨 분석 조회 성공' })
+	async getWorkoutVolumeAnalysis(
+		@Param('id') id: string,
+		@Query('period') period?: 'WEEKLY' | 'MONTHLY',
+		@Query('startDate') startDate?: string,
+		@Query('endDate') endDate?: string,
+	) {
+		const analysis = await this.workoutRecordsService.getVolumeAnalysis(
+			id,
+			period,
+			startDate,
+			endDate,
+		);
+		return ApiResponseHelper.success(analysis, '볼륨 분석 조회 성공');
+	}
+
+	@Get(':id/workout-records/calendar')
+	@ApiOperation({
+		summary: '운동 캘린더 조회',
+		description: '지정된 기간의 운동 캘린더를 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: '운동 캘린더 조회 성공' })
+	async getWorkoutCalendar(
+		@Param('id') id: string,
+		@Query('startDate') startDate: string,
+		@Query('endDate') endDate: string,
+	) {
+		const calendar = await this.workoutRecordsService.getCalendar(id, startDate, endDate);
+		return ApiResponseHelper.success(calendar, '운동 캘린더 조회 성공');
 	}
 
 	@Get(':id/workout-records/volume')
 	@ApiOperation({
-		summary: '부위별 볼륨 조회',
-		description: '회원의 부위별 운동 볼륨을 주간/월간으로 조회합니다.',
+		summary: '부위별 볼륨 조회 (하위 호환성)',
+		description: '회원의 부위별 운동 볼륨을 주간/월간으로 조회합니다. (기존 API 유지)',
 	})
 	@ApiResponse({ status: 200, description: '부위별 볼륨 조회 성공' })
 	async getWorkoutVolume(
@@ -295,8 +364,22 @@ export class MembersController {
 	})
 	@ApiResponse({ status: 200, description: 'PT 세션 목록 조회 성공' })
 	async getPTSessions(@Param('id') id: string) {
-		const sessions = await this.ptSessionsService.findAll(id);
-		return ApiResponseHelper.success({ sessions, total: sessions.length }, 'PT 세션 목록 조회 성공');
+		const result = await this.ptSessionsService.findAll(id);
+		return ApiResponseHelper.success(result, 'PT 세션 목록 조회 성공');
+	}
+
+	@Get(':id/pt-sessions/:sessionId')
+	@ApiOperation({
+		summary: 'PT 세션 상세 조회',
+		description: '특정 PT 세션의 상세 정보를 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: 'PT 세션 상세 조회 성공' })
+	async getPTSession(
+		@Param('id') id: string,
+		@Param('sessionId') sessionId: string,
+	) {
+		const session = await this.ptSessionsService.findOne(sessionId, id);
+		return ApiResponseHelper.success(session, 'PT 세션 상세 조회 성공');
 	}
 
 	@Post(':id/pt-sessions')
@@ -347,6 +430,103 @@ export class MembersController {
 	) {
 		await this.ptSessionsService.remove(sessionId, id);
 		return ApiResponseHelper.success(null, 'PT 세션 삭제 성공');
+	}
+
+	// 1차피드백: 추천 운동 루틴
+	@Get(':id/workout-routines/today')
+	@ApiOperation({
+		summary: '오늘의 운동 루틴 조회',
+		description: '회원의 오늘 날짜 운동 루틴을 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: '오늘의 운동 루틴 조회 성공' })
+	@ApiResponse({ status: 404, description: '오늘의 운동 루틴이 없습니다' })
+	async getTodayRoutine(@Param('id') id: string) {
+		const routine = await this.workoutRoutinesService.findToday(id);
+		if (!routine) {
+			return ApiResponseHelper.success(null, '오늘의 운동 루틴이 없습니다.');
+		}
+		return ApiResponseHelper.success(routine, '오늘의 운동 루틴 조회 성공');
+	}
+
+	@Get(':id/workout-routines')
+	@ApiOperation({
+		summary: '운동 루틴 목록 조회',
+		description: '회원의 모든 운동 루틴을 조회합니다. 날짜 범위 및 완료 여부로 필터링 가능합니다.',
+	})
+	@ApiResponse({ status: 200, description: '운동 루틴 목록 조회 성공' })
+	async getWorkoutRoutines(
+		@Param('id') id: string,
+		@Query('startDate') startDate?: string,
+		@Query('endDate') endDate?: string,
+		@Query('isCompleted') isCompleted?: string,
+	) {
+		const isCompletedBool = isCompleted === 'true' ? true : isCompleted === 'false' ? false : undefined;
+		const routines = await this.workoutRoutinesService.findAll(id, startDate, endDate, isCompletedBool);
+		return ApiResponseHelper.success({ routines, total: routines.length }, '운동 루틴 목록 조회 성공');
+	}
+
+	@Post(':id/workout-routines')
+	@HttpCode(HttpStatus.CREATED)
+	@UseGuards(RolesGuard)
+	@Roles(Role.ADMIN, Role.TRAINER)
+	@ApiOperation({
+		summary: '운동 루틴 생성',
+		description: '새로운 운동 루틴을 생성합니다. (ADMIN, TRAINER 권한 필요)',
+	})
+	@ApiResponse({ status: 201, description: '운동 루틴 생성 성공' })
+	async createWorkoutRoutine(
+		@Param('id') id: string,
+		@Body() createDto: CreateWorkoutRoutineDto,
+	) {
+		const routine = await this.workoutRoutinesService.create(id, createDto);
+		return ApiResponseHelper.success(routine, '운동 루틴 생성 성공');
+	}
+
+	@Put(':id/workout-routines/:routineId')
+	@UseGuards(RolesGuard)
+	@Roles(Role.ADMIN, Role.TRAINER)
+	@ApiOperation({
+		summary: '운동 루틴 수정',
+		description: '기존 운동 루틴을 수정합니다. (ADMIN, TRAINER 권한 필요)',
+	})
+	@ApiResponse({ status: 200, description: '운동 루틴 수정 성공' })
+	async updateWorkoutRoutine(
+		@Param('id') id: string,
+		@Param('routineId') routineId: string,
+		@Body() updateDto: UpdateWorkoutRoutineDto,
+	) {
+		const routine = await this.workoutRoutinesService.update(routineId, id, updateDto);
+		return ApiResponseHelper.success(routine, '운동 루틴 수정 성공');
+	}
+
+	@Put(':id/workout-routines/:routineId/complete')
+	@ApiOperation({
+		summary: '운동 루틴 완료 처리',
+		description: '운동 루틴을 완료 처리합니다. 모든 인증된 사용자가 가능합니다.',
+	})
+	@ApiResponse({ status: 200, description: '운동 루틴 완료 처리 성공' })
+	async completeWorkoutRoutine(
+		@Param('id') id: string,
+		@Param('routineId') routineId: string,
+	) {
+		const routine = await this.workoutRoutinesService.complete(routineId, id);
+		return ApiResponseHelper.success(routine, '운동 루틴 완료 처리 성공');
+	}
+
+	@Delete(':id/workout-routines/:routineId')
+	@UseGuards(RolesGuard)
+	@Roles(Role.ADMIN, Role.TRAINER)
+	@ApiOperation({
+		summary: '운동 루틴 삭제',
+		description: '운동 루틴을 삭제합니다. (ADMIN, TRAINER 권한 필요)',
+	})
+	@ApiResponse({ status: 200, description: '운동 루틴 삭제 성공' })
+	async deleteWorkoutRoutine(
+		@Param('id') id: string,
+		@Param('routineId') routineId: string,
+	) {
+		await this.workoutRoutinesService.remove(routineId, id);
+		return ApiResponseHelper.success(null, '운동 루틴 삭제 성공');
 	}
 
 	// 1차피드백: 대시보드 통합

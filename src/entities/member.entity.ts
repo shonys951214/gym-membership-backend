@@ -15,6 +15,7 @@ import { PTUsage } from './pt-usage.entity';
 import { AbilitySnapshot } from './ability-snapshot.entity';
 import { WorkoutRecord } from './workout-record.entity';
 import { PTSession } from './pt-session.entity';
+import { WorkoutRoutine } from './workout-routine.entity';
 import { MemberStatus } from '../common/enums';
 
 @Index('idx_members_email', ['email'])
@@ -82,6 +83,10 @@ export class Member {
   // 1차피드백: PT 세션
   @OneToMany(() => PTSession, (ptSession) => ptSession.member)
   ptSessions: PTSession[];
+
+  // 1차피드백: 추천 운동 루틴
+  @OneToMany(() => WorkoutRoutine, (workoutRoutine) => workoutRoutine.member)
+  workoutRoutines: WorkoutRoutine[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

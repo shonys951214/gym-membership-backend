@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsDateString, IsEnum, Min } from 'class-validator';
+import { IsString, IsNumber, IsDateString, IsEnum, IsOptional, Min } from 'class-validator';
 import { WorkoutType } from '../../../entities/workout-record.entity';
 
 export class CreateWorkoutRecordDto {
@@ -61,5 +61,33 @@ export class CreateWorkoutRecordDto {
 	})
 	@IsEnum(WorkoutType)
 	workoutType: WorkoutType;
+
+	@ApiProperty({
+		description: '운동 시간 (분)',
+		example: 30,
+		required: false,
+	})
+	@IsOptional()
+	@IsNumber()
+	@Min(0)
+	duration?: number;
+
+	@ApiProperty({
+		description: 'PT 세션 ID (workoutType이 PT인 경우)',
+		example: 'uuid',
+		required: false,
+	})
+	@IsOptional()
+	@IsString()
+	ptSessionId?: string;
+
+	@ApiProperty({
+		description: '트레이너 코멘트',
+		example: '좋은 자세',
+		required: false,
+	})
+	@IsOptional()
+	@IsString()
+	trainerComment?: string;
 }
 

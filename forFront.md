@@ -661,6 +661,256 @@ INTERNAL_SERVER_ERROR; // 서버 오류
 | ------ | -------- | ------------------ | ---- |
 | GET    | `/`      | 회원 능력치 데이터 | ✅   |
 
+### 목표 관리 (`/api/members/:id/goal`)
+
+| Method | Endpoint | 설명      | 권한           |
+| ------ | -------- | --------- | -------------- |
+| GET    | `/`      | 목표 조회 | ✅             |
+| PUT    | `/`      | 목표 수정 | ADMIN, TRAINER |
+
+**요청 예시** (`PUT /api/members/:id/goal`):
+
+```json
+{
+	"goal": "체중 5kg 감량",
+	"goalProgress": 60,
+	"goalTrainerComment": "좋은 진전이 있습니다! 계속 화이팅!",
+	"totalSessions": 20,
+	"completedSessions": 12
+}
+```
+
+**응답 예시**:
+
+```json
+{
+	"success": true,
+	"data": {
+		"id": "member-uuid",
+		"goal": "체중 5kg 감량",
+		"goalProgress": 60,
+		"goalTrainerComment": "좋은 진전이 있습니다! 계속 화이팅!",
+		"totalSessions": 20,
+		"completedSessions": 12
+	},
+	"message": "목표 수정 성공"
+}
+```
+
+> **1차피드백 반영**: 목표 관리 기능 추가
+
+### 운동 기록 (`/api/members/:id/workout-records`)
+
+| Method | Endpoint     | 설명                | 권한           |
+| ------ | ------------ | ------------------- | -------------- |
+| GET    | `/`          | 운동 기록 목록 조회 | ✅             |
+| GET    | `/volume`    | 부위별 볼륨 조회    | ✅             |
+| POST   | `/`          | 운동 기록 생성      | ADMIN, TRAINER |
+| PUT    | `/:recordId` | 운동 기록 수정      | ADMIN, TRAINER |
+| DELETE | `/:recordId` | 운동 기록 삭제      | ADMIN, TRAINER |
+
+**workoutType**: `PT` | `PERSONAL` (PT 세션 참여 / 개인 운동)
+
+**요청 예시** (`POST /api/members/:id/workout-records`):
+
+```json
+{
+	"workoutDate": "2024-03-15",
+	"bodyPart": "하체",
+	"exerciseName": "스쿼트",
+	"weight": 60,
+	"reps": 10,
+	"sets": 3,
+	"workoutType": "PERSONAL"
+}
+```
+
+**응답 예시** (`GET /api/members/:id/workout-records/volume?period=week`):
+
+```json
+{
+	"success": true,
+	"data": {
+		"period": "week",
+		"bodyPartVolumes": [
+			{ "bodyPart": "하체", "volume": 1500.0 },
+			{ "bodyPart": "가슴", "volume": 1200.0 },
+			{ "bodyPart": "등", "volume": 1000.0 }
+		],
+		"totalVolume": 3700.0
+	},
+	"message": "부위별 볼륨 조회 성공"
+}
+```
+
+> **1차피드백 반영**: 운동 기록 기능 추가, 볼륨 자동 계산 (weight × reps × sets)
+
+### PT 세션 관리 (`/api/members/:id/pt-sessions`)
+
+| Method | Endpoint      | 설명              | 권한           |
+| ------ | ------------- | ----------------- | -------------- |
+| GET    | `/`           | PT 세션 목록 조회 | ✅             |
+| POST   | `/`           | PT 세션 생성      | ADMIN, TRAINER |
+| PUT    | `/:sessionId` | PT 세션 수정      | ADMIN, TRAINER |
+| DELETE | `/:sessionId` | PT 세션 삭제      | ADMIN, TRAINER |
+
+**요청 예시** (`POST /api/members/:id/pt-sessions`):
+
+```json
+{
+	"sessionDate": "2024-03-15",
+	"mainContent": "하체 근력 운동 - 스쿼트, 레그프레스, 런지",
+	"trainerComment": "자세가 많이 개선되었습니다!"
+}
+```
+
+**응답 예시**:
+
+```json
+{
+	"success": true,
+	"data": {
+		"id": "session-uuid",
+		"memberId": "member-uuid",
+		"sessionNumber": 5,
+		"sessionDate": "2024-03-15",
+		"mainContent": "하체 근력 운동 - 스쿼트, 레그프레스, 런지",
+		"trainerComment": "자세가 많이 개선되었습니다!",
+		"createdAt": "2024-03-15T10:00:00+09:00"
+	},
+	"message": "PT 세션 생성 성공"
+}
+```
+
+> **1차피드백 반영**: PT 세션 관리 기능 추가, 세션 번호 자동 계산, completedSessions 자동 증가
+
+### 추천 운동 루틴 (`/api/members/:id/workout-routines`)
+
+| Method | Endpoint               | 설명                  | 권한           |
+| ------ | ---------------------- | --------------------- | -------------- |
+| GET    | `/today`               | 오늘의 운동 루틴 조회 | ✅             |
+| GET    | `/`                    | 운동 루틴 목록 조회   | ✅             |
+| POST   | `/`                    | 운동 루틴 생성        | ADMIN, TRAINER |
+| PUT    | `/:routineId`          | 운동 루틴 수정        | ADMIN, TRAINER |
+| PUT    | `/:routineId/complete` | 운동 루틴 완료 처리   | ✅             |
+| DELETE | `/:routineId`          | 운동 루틴 삭제        | ADMIN, TRAINER |
+
+**요청 예시** (`POST /api/members/:id/workout-routines`):
+
+```json
+{
+	"routineDate": "2024-03-15",
+	"exercises": [
+		{
+			"bodyPart": "하체",
+			"exerciseName": "스쿼트",
+			"sets": 3,
+			"reps": 10,
+			"weight": 60,
+			"notes": "자세 주의"
+		},
+		{
+			"bodyPart": "가슴",
+			"exerciseName": "벤치프레스",
+			"sets": 3,
+			"reps": 8,
+			"weight": 50,
+			"notes": null
+		}
+	]
+}
+```
+
+**응답 예시** (`GET /api/members/:id/workout-routines/today`):
+
+```json
+{
+	"success": true,
+	"data": {
+		"id": "routine-uuid",
+		"memberId": "member-uuid",
+		"routineDate": "2024-03-15",
+		"exercises": [
+			{
+				"bodyPart": "하체",
+				"exerciseName": "스쿼트",
+				"sets": 3,
+				"reps": 10,
+				"weight": 60,
+				"notes": "자세 주의"
+			}
+		],
+		"isCompleted": false,
+		"createdAt": "2024-03-15T09:00:00+09:00"
+	},
+	"message": "오늘의 운동 루틴 조회 성공"
+}
+```
+
+**쿼리 파라미터** (`GET /api/members/:id/workout-routines`):
+
+- `startDate`: 시작 날짜 (YYYY-MM-DD)
+- `endDate`: 종료 날짜 (YYYY-MM-DD)
+- `isCompleted`: 완료 여부 (true/false)
+
+> **1차피드백 반영**: 추천 운동 루틴 기능 추가
+
+### 대시보드 통합 API (`/api/members/:id/dashboard`)
+
+| Method | Endpoint | 설명                      | 권한 |
+| ------ | -------- | ------------------------- | ---- |
+| GET    | `/`      | 대시보드 통합 데이터 조회 | ✅   |
+
+**응답 예시**:
+
+```json
+{
+	"success": true,
+	"data": {
+		"goal": {
+			"goal": "체중 5kg 감량",
+			"goalProgress": 60,
+			"goalTrainerComment": "좋은 진전이 있습니다!"
+		},
+		"sessionProgress": {
+			"totalSessions": 20,
+			"completedSessions": 12,
+			"progressPercentage": 60
+		},
+		"workoutCalendar": [
+			{
+				"date": "2024-03-15",
+				"ptSessions": [
+					{
+						"id": "session-uuid",
+						"sessionNumber": 5,
+						"mainContent": "하체 근력 운동"
+					}
+				],
+				"personalWorkouts": [
+					{
+						"id": "record-uuid",
+						"exerciseName": "스쿼트",
+						"bodyPart": "하체"
+					}
+				]
+			}
+		],
+		"workoutAnalysis": {
+			"period": "week",
+			"bodyPartVolumes": [
+				{ "bodyPart": "하체", "volume": 1500.0 },
+				{ "bodyPart": "가슴", "volume": 1200.0 }
+			],
+			"totalVolume": 2700.0
+		}
+	},
+	"message": "대시보드 데이터 조회 성공"
+}
+```
+
+> **1차피드백 반영**: 대시보드 통합 API 추가 (목표, 수업 진행률, 운동 캘린더, 운동 기록 분석)
+
 ### 인사이트 API (`/api/insights`) - 대시보드용
 
 | Method | Endpoint          | 설명                           | 권한           |
@@ -753,6 +1003,11 @@ src/
 5. **부상 관리**: 부상 이력 및 평가 제한 설정
 6. **분석**: 평균 비교, 변화 추이 분석
 7. **인사이트**: 대시보드용 통계 및 위험 신호 감지
+8. **목표 관리**: 회원 목표, 진행률, 트레이너 코멘트 관리
+9. **운동 기록**: 운동별 기록, 볼륨 자동 계산, 부위별 분석
+10. **PT 세션 관리**: PT 세션 생성, 세션 번호 자동 계산, 진행률 자동 업데이트
+11. **추천 운동 루틴**: 트레이너가 추천하는 운동 루틴, 완료 여부 추적
+12. **대시보드 통합**: 목표, 수업 진행률, 운동 캘린더, 운동 기록 분석 통합
 
 ### 데이터 흐름
 

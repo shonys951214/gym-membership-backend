@@ -72,6 +72,16 @@ export class ApiExceptions {
 		return new ApiException('INJURY_NOT_FOUND', message, HttpStatus.NOT_FOUND);
 	}
 
+	// 목표 관련
+	static goalNotFound(message: string = '목표를 찾을 수 없습니다.'): ApiException {
+		return new ApiException('GOAL_NOT_FOUND', message, HttpStatus.NOT_FOUND);
+	}
+
+	// 운동 루틴 관련
+	static routineNotFound(message: string = '운동 루틴을 찾을 수 없습니다.'): ApiException {
+		return new ApiException('ROUTINE_NOT_FOUND', message, HttpStatus.NOT_FOUND);
+	}
+
 	// 회원권 관련
 	static membershipNotFound(message: string = '회원권을 찾을 수 없습니다.'): ApiException {
 		return new ApiException('MEMBER_NOT_FOUND', message, HttpStatus.NOT_FOUND);

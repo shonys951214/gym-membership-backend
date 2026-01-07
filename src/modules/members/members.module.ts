@@ -4,6 +4,7 @@ import { MembersController } from "./members.controller";
 import { MembersService } from "./members.service";
 import { WorkoutRecordsService } from "./workout-records.service";
 import { PTSessionsService } from "./pt-sessions.service";
+import { WorkoutRoutinesService } from "./workout-routines.service";
 import { InjuriesController } from "./injuries.controller";
 import { AbilitiesController } from "./abilities.controller";
 import { MemberAnalyticsController } from "./analytics.controller";
@@ -15,6 +16,7 @@ import { InjuryRestriction } from "../../entities/injury-restriction.entity";
 import { AbilitySnapshot } from "../../entities/ability-snapshot.entity";
 import { WorkoutRecord } from "../../entities/workout-record.entity";
 import { PTSession } from "../../entities/pt-session.entity";
+import { WorkoutRoutine } from "../../entities/workout-routine.entity";
 import { AssessmentsModule } from "../assessments/assessments.module";
 
 @Module({
@@ -28,6 +30,7 @@ import { AssessmentsModule } from "../assessments/assessments.module";
 			AbilitySnapshot,
 			WorkoutRecord,
 			PTSession,
+			WorkoutRoutine,
 		]),
 		AssessmentsModule,
 	],
@@ -37,8 +40,8 @@ import { AssessmentsModule } from "../assessments/assessments.module";
 		AbilitiesController,
 		MemberAnalyticsController,
 	],
-	providers: [MembersService, WorkoutRecordsService, PTSessionsService],
-	exports: [MembersService, WorkoutRecordsService, PTSessionsService],
+	providers: [MembersService, WorkoutRecordsService, PTSessionsService, WorkoutRoutinesService],
+	exports: [MembersService, WorkoutRecordsService, PTSessionsService, WorkoutRoutinesService],
 })
 export class MembersModule {}
 

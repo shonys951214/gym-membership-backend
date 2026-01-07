@@ -49,7 +49,10 @@ NODE_ENV=development
 JWT_SECRET=your-secret-key-change-this-in-production
 JWT_EXPIRES_IN=7d
 
-# 카카오 로그인 (선택사항 - 추후 구현)
+# 프론트엔드 URL (선택사항 - 여러 개는 쉼표로 구분)
+# FRONTEND_URL=https://gym-admin-mu.vercel.app,http://localhost:3000
+
+# 카카오 로그인 (선택사항)
 # KAKAO_CLIENT_ID=your-kakao-client-id
 # KAKAO_CLIENT_SECRET=your-kakao-client-secret
 # KAKAO_REDIRECT_URI=http://localhost:3001/api/auth/kakao/callback

@@ -53,13 +53,22 @@ export class WorkoutRecord {
 	@Column({ type: 'float' })
 	volume: number; // 볼륨 = weight * reps * sets (자동 계산)
 
+	@Column({ type: 'int', nullable: true })
+	duration?: number; // 운동 시간 (분)
+
 	@Column({
 		type: 'enum',
 		enum: WorkoutType,
 		default: WorkoutType.PERSONAL,
 		name: 'workout_type',
 	})
-	workoutType: WorkoutType; // 'PT' | 'PERSONAL'
+	workoutType: WorkoutType; // 'PT' | 'PERSONAL' (프론트엔드 요청: sessionType과 동일)
+
+	@Column({ name: 'pt_session_id', nullable: true })
+	ptSessionId?: string; // PT 세션 ID (workoutType이 'PT'인 경우)
+
+	@Column({ type: 'text', name: 'trainer_comment', nullable: true })
+	trainerComment?: string; // 트레이너 코멘트
 
 	@CreateDateColumn({ name: 'created_at' })
 	createdAt: Date;

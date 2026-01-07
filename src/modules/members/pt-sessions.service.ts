@@ -18,13 +18,27 @@ export class PTSessionsService {
 		private memberRepository: Repository<Member>,
 	) {}
 
-	async findAll(memberId: string): Promise<PTSession[]> {
-		await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+	async findAll(memberId: string): Promise<{
+		sessions: PTSession[];
+		total: number;
+		totalSessions: number;
+		completedSessions: number;
+	}> {
+		const member = await this.memberRepository.findOneOrFail({
+			where: { id: memberId },
+		});
 
-		return this.ptSessionRepository.find({
+		const sessions = await this.ptSessionRepository.find({
 			where: { memberId },
 			order: { sessionNumber: 'DESC' },
 		});
+
+		return {
+			sessions,
+			total: sessions.length,
+			totalSessions: member.totalSessions,
+			completedSessions: member.completedSessions,
+		};
 	}
 
 	async findOne(id: string, memberId: string): Promise<PTSession> {

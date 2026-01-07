@@ -13,6 +13,7 @@ import { UpdateMemberDto } from './dto/update-member.dto';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { UpdatePTUsageDto } from './dto/update-pt-usage.dto';
 import { UpdateGoalDto } from './dto/update-goal.dto';
+import { CreateGoalDto } from './dto/create-goal.dto';
 import { WorkoutVolumeQueryDto, VolumePeriod } from './dto/workout-volume-query.dto';
 import { ApiExceptions } from '../../common/exceptions';
 
