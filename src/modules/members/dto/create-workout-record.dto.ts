@@ -30,37 +30,45 @@ export class CreateWorkoutRecordDto {
 		description: '무게 (kg)',
 		example: 60,
 		minimum: 0,
+		required: false,
 	})
+	@IsOptional()
 	@IsNumber()
 	@Min(0)
-	weight: number;
+	weight?: number;
 
 	@ApiProperty({
 		description: '횟수',
 		example: 10,
 		minimum: 1,
+		required: false,
 	})
+	@IsOptional()
 	@IsNumber()
 	@Min(1)
-	reps: number;
+	reps?: number;
 
 	@ApiProperty({
 		description: '세트 수',
 		example: 3,
 		minimum: 1,
+		required: false,
 	})
+	@IsOptional()
 	@IsNumber()
 	@Min(1)
-	sets: number;
+	sets?: number;
 
 	@ApiProperty({
 		description: '운동 타입',
 		enum: WorkoutType,
 		example: WorkoutType.PERSONAL,
 		default: WorkoutType.PERSONAL,
+		required: false,
 	})
+	@IsOptional()
 	@IsEnum(WorkoutType)
-	workoutType: WorkoutType;
+	workoutType?: WorkoutType;
 
 	@ApiProperty({
 		description: '운동 시간 (분)',

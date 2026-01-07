@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { WorkoutRecord } from '../../entities/workout-record.entity';
+import { WorkoutRecord, WorkoutType } from '../../entities/workout-record.entity';
 import { Member } from '../../entities/member.entity';
 import { CreateWorkoutRecordDto } from './dto/create-workout-record.dto';
 import { UpdateWorkoutRecordDto } from './dto/update-workout-record.dto';
@@ -77,20 +77,28 @@ export class WorkoutRecordsService {
 	): Promise<WorkoutRecord> {
 		await this.memberRepository.findOneOrFail({ where: { id: memberId } });
 
+		// workoutType 기본값 처리
+		const workoutType = createDto.workoutType ?? WorkoutType.PERSONAL;
+
+		// weight, reps, sets 기본값 처리 (선택적 필드)
+		const weight = createDto.weight ?? 0;
+		const reps = createDto.reps ?? 1;
+		const sets = createDto.sets ?? 1;
+
 		// 볼륨 자동 계산
-		const volume = createDto.weight * createDto.reps * createDto.sets;
+		const volume = weight * reps * sets;
 
 		const record = this.workoutRecordRepository.create({
 			memberId,
 			workoutDate: new Date(createDto.workoutDate),
 			bodyPart: createDto.bodyPart,
 			exerciseName: createDto.exerciseName,
-			weight: createDto.weight,
-			reps: createDto.reps,
-			sets: createDto.sets,
+			weight,
+			reps,
+			sets,
 			volume,
 			duration: createDto.duration,
-			workoutType: createDto.workoutType,
+			workoutType,
 			ptSessionId: createDto.ptSessionId,
 			trainerComment: createDto.trainerComment,
 		});
@@ -106,6 +114,9 @@ export class WorkoutRecordsService {
 		const record = await this.findOne(id, memberId);
 
 		// 업데이트할 필드가 있으면 적용
+		if (updateDto.workoutType) {
+			record.workoutType = updateDto.workoutType;
+		}
 		if (updateDto.workoutDate) {
 			record.workoutDate = new Date(updateDto.workoutDate);
 		}
@@ -123,9 +134,6 @@ export class WorkoutRecordsService {
 		}
 		if (updateDto.sets !== undefined) {
 			record.sets = updateDto.sets;
-		}
-		if (updateDto.workoutType) {
-			record.workoutType = updateDto.workoutType;
 		}
 		if (updateDto.duration !== undefined) {
 			record.duration = updateDto.duration;
