@@ -83,6 +83,25 @@ export class AssessmentsService {
         stabilityScore: assessment.snapshot.stabilityScore ?? 0,
         totalScore: assessment.snapshot.totalScore ?? 0,
       };
+    } else {
+      // snapshot이 없으면 기본 스냅샷 객체 생성 (프론트엔드 오류 방지)
+      assessment.snapshot = {
+        id: '',
+        assessmentId: assessment.id,
+        memberId: assessment.memberId,
+        assessedAt: assessment.assessedAt,
+        version: 'v1',
+        strengthScore: 0,
+        cardioScore: 0,
+        enduranceScore: 0,
+        flexibilityScore: 0,
+        bodyScore: 0,
+        stabilityScore: 0,
+        totalScore: 0,
+        createdAt: assessment.createdAt,
+        assessment: assessment,
+        member: assessment.member,
+      } as AbilitySnapshot;
     }
 
     return assessment;
