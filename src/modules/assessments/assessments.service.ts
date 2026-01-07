@@ -226,6 +226,7 @@ export class AssessmentsService {
 				"strengthScore",
 				"cardioScore",
 				"enduranceScore",
+				"flexibilityScore", // 1차피드백: 유연성 추가
 				"bodyScore",
 				"stabilityScore",
 				"totalScore",
@@ -267,11 +268,12 @@ export class AssessmentsService {
 
 		return {
 			indicators: [
-				{ name: "근력", score: snapshot.strengthScore || 0 },
-				{ name: "심폐", score: snapshot.cardioScore || 0 },
-				{ name: "지구력", score: snapshot.enduranceScore || 0 },
-				{ name: "신체", score: snapshot.bodyScore || 0 },
-				{ name: "안정성", score: snapshot.stabilityScore || 0 },
+				{ name: "하체 근력", score: snapshot.strengthScore || 0 },
+				{ name: "심폐 지구력", score: snapshot.cardioScore || 0 },
+				{ name: "근지구력", score: snapshot.enduranceScore || 0 },
+				{ name: "유연성", score: snapshot.flexibilityScore || 0 }, // 1차피드백: 유연성 추가
+				{ name: "체성분 밸런스", score: snapshot.bodyScore || 0 },
+				{ name: "부상 안정성", score: snapshot.stabilityScore || 0 },
 			],
 			assessedAt: DateHelper.toKoreaTimeISOString(snapshot.assessedAt),
 			version: snapshot.version || "v1",
@@ -294,11 +296,12 @@ export class AssessmentsService {
 			history: snapshots.map((snapshot) => ({
 				assessedAt: DateHelper.toKoreaTimeISOString(snapshot.assessedAt),
 				indicators: [
-					{ name: "근력", score: snapshot.strengthScore || 0 },
-					{ name: "심폐", score: snapshot.cardioScore || 0 },
-					{ name: "지구력", score: snapshot.enduranceScore || 0 },
-					{ name: "신체", score: snapshot.bodyScore || 0 },
-					{ name: "안정성", score: snapshot.stabilityScore || 0 },
+					{ name: "하체 근력", score: snapshot.strengthScore || 0 },
+					{ name: "심폐 지구력", score: snapshot.cardioScore || 0 },
+					{ name: "근지구력", score: snapshot.enduranceScore || 0 },
+					{ name: "유연성", score: snapshot.flexibilityScore || 0 }, // 1차피드백: 유연성 추가
+					{ name: "체성분 밸런스", score: snapshot.bodyScore || 0 },
+					{ name: "부상 안정성", score: snapshot.stabilityScore || 0 },
 				],
 				version: snapshot.version || "v1",
 			})),

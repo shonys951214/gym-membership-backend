@@ -23,6 +23,7 @@ export class AnalyticsService {
     strengthScore: number;
     cardioScore: number;
     enduranceScore: number;
+    flexibilityScore: number; // 1차피드백: 유연성 추가
     bodyScore: number;
     stabilityScore: number;
     totalScore: number;
@@ -48,6 +49,7 @@ export class AnalyticsService {
         strengthScore: 0,
         cardioScore: 0,
         enduranceScore: 0,
+        flexibilityScore: 0, // 1차피드백: 유연성 추가
         bodyScore: 0,
         stabilityScore: 0,
         totalScore: 0,
@@ -59,6 +61,7 @@ export class AnalyticsService {
       strengthScore: 0,
       cardioScore: 0,
       enduranceScore: 0,
+      flexibilityScore: 0, // 1차피드백: 유연성 추가
       bodyScore: 0,
       stabilityScore: 0,
       totalScore: 0,
@@ -68,6 +71,7 @@ export class AnalyticsService {
       averages.strengthScore += snapshot.strengthScore || 0;
       averages.cardioScore += snapshot.cardioScore || 0;
       averages.enduranceScore += snapshot.enduranceScore || 0;
+      averages.flexibilityScore += snapshot.flexibilityScore || 0; // 1차피드백: 유연성 추가
       averages.bodyScore += snapshot.bodyScore || 0;
       averages.stabilityScore += snapshot.stabilityScore || 0;
       averages.totalScore += snapshot.totalScore || 0;
@@ -93,6 +97,7 @@ export class AnalyticsService {
       strengthScore: number;
       cardioScore: number;
       enduranceScore: number;
+      flexibilityScore: number; // 1차피드백: 유연성 추가
       bodyScore: number;
       stabilityScore: number;
       totalScore: number;
@@ -101,6 +106,7 @@ export class AnalyticsService {
       strengthScore: number;
       cardioScore: number;
       enduranceScore: number;
+      flexibilityScore: number; // 1차피드백: 유연성 추가
       bodyScore: number;
       stabilityScore: number;
       totalScore: number;
@@ -134,6 +140,10 @@ export class AnalyticsService {
         memberSnapshot.enduranceScore || 0,
         averages.enduranceScore,
       ),
+      flexibilityScore: this.calculatePercentile(
+        memberSnapshot.flexibilityScore || 0,
+        averages.flexibilityScore,
+      ), // 1차피드백: 유연성 추가
       bodyScore: this.calculatePercentile(
         memberSnapshot.bodyScore || 0,
         averages.bodyScore,
@@ -154,6 +164,7 @@ export class AnalyticsService {
         strengthScore: averages.strengthScore,
         cardioScore: averages.cardioScore,
         enduranceScore: averages.enduranceScore,
+        flexibilityScore: averages.flexibilityScore, // 1차피드백: 유연성 추가
         bodyScore: averages.bodyScore,
         stabilityScore: averages.stabilityScore,
         totalScore: averages.totalScore,

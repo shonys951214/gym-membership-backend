@@ -69,7 +69,7 @@ export class InsightsService {
 		@InjectRepository(Member)
 		private memberRepository: Repository<Member>,
 		@InjectRepository(Assessment)
-		private assessmentRepository: Repository<Assessment>,
+		private assessmentRepository: Repository<Assessment>
 	) {}
 
 	/**
@@ -83,11 +83,12 @@ export class InsightsService {
 		if (members.length === 0) {
 			return {
 				indicators: [
-					{ name: "근력", score: 0 },
-					{ name: "심폐", score: 0 },
-					{ name: "지구력", score: 0 },
-					{ name: "신체", score: 0 },
-					{ name: "안정성", score: 0 },
+					{ name: "하체 근력", score: 0 },
+					{ name: "심폐 지구력", score: 0 },
+					{ name: "근지구력", score: 0 },
+					{ name: "유연성", score: 0 }, // 1차피드백: 유연성 추가
+					{ name: "체성분 밸런스", score: 0 },
+					{ name: "부상 안정성", score: 0 },
 				],
 				assessedAt: DateHelper.getKoreaTimeISOString(),
 				version: "v1",
@@ -100,21 +101,20 @@ export class InsightsService {
 					where: { memberId: member.id },
 					order: { assessedAt: "DESC" },
 				});
-			}),
+			})
 		);
 
-		const validSnapshots = latestSnapshots.filter(
-			(snapshot) => snapshot !== null,
-		) as AbilitySnapshot[];
+		const validSnapshots = latestSnapshots.filter((snapshot) => snapshot !== null) as AbilitySnapshot[];
 
 		if (validSnapshots.length === 0) {
 			return {
 				indicators: [
-					{ name: "근력", score: 0 },
-					{ name: "심폐", score: 0 },
-					{ name: "지구력", score: 0 },
-					{ name: "신체", score: 0 },
-					{ name: "안정성", score: 0 },
+					{ name: "하체 근력", score: 0 },
+					{ name: "심폐 지구력", score: 0 },
+					{ name: "근지구력", score: 0 },
+					{ name: "유연성", score: 0 }, // 1차피드백: 유연성 추가
+					{ name: "체성분 밸런스", score: 0 },
+					{ name: "부상 안정성", score: 0 },
 				],
 				assessedAt: DateHelper.getKoreaTimeISOString(),
 				version: "v1",
@@ -125,6 +125,7 @@ export class InsightsService {
 			strengthScore: 0,
 			cardioScore: 0,
 			enduranceScore: 0,
+			flexibilityScore: 0, // 1차피드백: 유연성 추가
 			bodyScore: 0,
 			stabilityScore: 0,
 		};
@@ -133,6 +134,7 @@ export class InsightsService {
 			averages.strengthScore += snapshot.strengthScore || 0;
 			averages.cardioScore += snapshot.cardioScore || 0;
 			averages.enduranceScore += snapshot.enduranceScore || 0;
+			averages.flexibilityScore += snapshot.flexibilityScore || 0; // 1차피드백: 유연성 추가
 			averages.bodyScore += snapshot.bodyScore || 0;
 			averages.stabilityScore += snapshot.stabilityScore || 0;
 		});
@@ -148,11 +150,12 @@ export class InsightsService {
 
 		return {
 			indicators: [
-				{ name: "근력", score: Math.round(averages.strengthScore) },
-				{ name: "심폐", score: Math.round(averages.cardioScore) },
-				{ name: "지구력", score: Math.round(averages.enduranceScore) },
-				{ name: "신체", score: Math.round(averages.bodyScore) },
-				{ name: "안정성", score: Math.round(averages.stabilityScore) },
+				{ name: "하체 근력", score: Math.round(averages.strengthScore) },
+				{ name: "심폐 지구력", score: Math.round(averages.cardioScore) },
+				{ name: "근지구력", score: Math.round(averages.enduranceScore) },
+				{ name: "유연성", score: Math.round(averages.flexibilityScore) }, // 1차피드백: 유연성 추가
+				{ name: "체성분 밸런스", score: Math.round(averages.bodyScore) },
+				{ name: "부상 안정성", score: Math.round(averages.stabilityScore) },
 			],
 			assessedAt: DateHelper.toKoreaTimeISOString(latestDate),
 			version: validSnapshots[0].version || "v1",
@@ -199,11 +202,9 @@ export class InsightsService {
 				(acc, snapshot) => ({
 					strengthScore: acc.strengthScore + (snapshot.strengthScore || 0),
 					cardioScore: acc.cardioScore + (snapshot.cardioScore || 0),
-					enduranceScore:
-						acc.enduranceScore + (snapshot.enduranceScore || 0),
+					enduranceScore: acc.enduranceScore + (snapshot.enduranceScore || 0),
 					bodyScore: acc.bodyScore + (snapshot.bodyScore || 0),
-					stabilityScore:
-						acc.stabilityScore + (snapshot.stabilityScore || 0),
+					stabilityScore: acc.stabilityScore + (snapshot.stabilityScore || 0),
 					totalScore: acc.totalScore + snapshot.totalScore,
 				}),
 				{
@@ -213,7 +214,7 @@ export class InsightsService {
 					bodyScore: 0,
 					stabilityScore: 0,
 					totalScore: 0,
-				},
+				}
 			);
 
 			const count = snapshots.length;
@@ -240,30 +241,12 @@ export class InsightsService {
 		};
 
 		const percentageChange = {
-			strengthScore:
-				lastWeek.strengthScore !== 0
-					? (changes.strengthScore / lastWeek.strengthScore) * 100
-					: 0,
-			cardioScore:
-				lastWeek.cardioScore !== 0
-					? (changes.cardioScore / lastWeek.cardioScore) * 100
-					: 0,
-			enduranceScore:
-				lastWeek.enduranceScore !== 0
-					? (changes.enduranceScore / lastWeek.enduranceScore) * 100
-					: 0,
-			bodyScore:
-				lastWeek.bodyScore !== 0
-					? (changes.bodyScore / lastWeek.bodyScore) * 100
-					: 0,
-			stabilityScore:
-				lastWeek.stabilityScore !== 0
-					? (changes.stabilityScore / lastWeek.stabilityScore) * 100
-					: 0,
-			totalScore:
-				lastWeek.totalScore !== 0
-					? (changes.totalScore / lastWeek.totalScore) * 100
-					: 0,
+			strengthScore: lastWeek.strengthScore !== 0 ? (changes.strengthScore / lastWeek.strengthScore) * 100 : 0,
+			cardioScore: lastWeek.cardioScore !== 0 ? (changes.cardioScore / lastWeek.cardioScore) * 100 : 0,
+			enduranceScore: lastWeek.enduranceScore !== 0 ? (changes.enduranceScore / lastWeek.enduranceScore) * 100 : 0,
+			bodyScore: lastWeek.bodyScore !== 0 ? (changes.bodyScore / lastWeek.bodyScore) * 100 : 0,
+			stabilityScore: lastWeek.stabilityScore !== 0 ? (changes.stabilityScore / lastWeek.stabilityScore) * 100 : 0,
+			totalScore: lastWeek.totalScore !== 0 ? (changes.totalScore / lastWeek.totalScore) * 100 : 0,
 		};
 
 		return {
@@ -294,11 +277,9 @@ export class InsightsService {
 			percentageChange: {
 				strengthScore: Math.round(percentageChange.strengthScore * 100) / 100,
 				cardioScore: Math.round(percentageChange.cardioScore * 100) / 100,
-				enduranceScore:
-					Math.round(percentageChange.enduranceScore * 100) / 100,
+				enduranceScore: Math.round(percentageChange.enduranceScore * 100) / 100,
 				bodyScore: Math.round(percentageChange.bodyScore * 100) / 100,
-				stabilityScore:
-					Math.round(percentageChange.stabilityScore * 100) / 100,
+				stabilityScore: Math.round(percentageChange.stabilityScore * 100) / 100,
 				totalScore: Math.round(percentageChange.totalScore * 100) / 100,
 			},
 		};
@@ -326,10 +307,7 @@ export class InsightsService {
 				const previous = snapshots[1];
 
 				if (current.totalScore && previous.totalScore) {
-					const declinePercentage =
-						((previous.totalScore - current.totalScore) /
-							previous.totalScore) *
-						100;
+					const declinePercentage = ((previous.totalScore - current.totalScore) / previous.totalScore) * 100;
 
 					// 10% 이상 하락 시 위험 신호
 					if (declinePercentage >= 10) {
@@ -365,9 +343,7 @@ export class InsightsService {
 					description: "최근 평가 기록이 없습니다.",
 				});
 			} else {
-				const daysSinceLastAssessment =
-					(Date.now() - lastAssessment.assessedAt.getTime()) /
-					(1000 * 60 * 60 * 24);
+				const daysSinceLastAssessment = (Date.now() - lastAssessment.assessedAt.getTime()) / (1000 * 60 * 60 * 24);
 
 				if (daysSinceLastAssessment > 30) {
 					riskMembers.push({
@@ -383,4 +359,3 @@ export class InsightsService {
 		return riskMembers;
 	}
 }
-

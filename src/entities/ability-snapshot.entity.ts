@@ -43,6 +43,9 @@ export class AbilitySnapshot {
 	@Column({ type: "float", name: "endurance_score", nullable: true })
 	enduranceScore?: number;
 
+	@Column({ type: "float", name: "flexibility_score", nullable: true })
+	flexibilityScore?: number; // 1차피드백: 유연성 추가
+
 	@Column({ type: "float", name: "body_score", nullable: true })
 	bodyScore?: number;
 

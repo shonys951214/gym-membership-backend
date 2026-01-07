@@ -505,7 +505,7 @@ INTERNAL_SERVER_ERROR; // 서버 오류
 
 **assessmentType**: `INITIAL` | `PERIODIC`  
 **condition**: `EXCELLENT` | `GOOD` | `NORMAL` | `POOR`  
-**category**: `STRENGTH` | `CARDIO` | `ENDURANCE` | `BODY` | `STABILITY`
+**category**: `STRENGTH` | `CARDIO` | `ENDURANCE` | `FLEXIBILITY` | `BODY` | `STABILITY`
 
 > **중요**:
 >
@@ -522,6 +522,117 @@ INTERNAL_SERVER_ERROR; // 서버 오류
 | GET    | `/compare?prev=1` | 이전 평가와 비교                   | ✅   |
 | GET    | `/hexagon`        | 헥사곤 데이터 (레이더 차트용)      | ✅   |
 | GET    | `/history`        | 체력 테스트 히스토리 (라인 차트용) | ✅   |
+
+**비교 API 응답 예시** (`GET /api/members/:memberId/abilities/compare?prev=1`):
+
+```json
+{
+	"success": true,
+	"data": {
+		"current": {
+			"id": "uuid",
+			"strengthScore": 75,
+			"cardioScore": 60,
+			"enduranceScore": 70,
+			"flexibilityScore": 65,
+			"bodyScore": 80,
+			"stabilityScore": 72,
+			"totalScore": 70.5,
+			"assessedAt": "2024-03-15T10:00:00+09:00"
+		},
+		"previous": {
+			"id": "uuid",
+			"strengthScore": 70,
+			"cardioScore": 58,
+			"enduranceScore": 68,
+			"flexibilityScore": 62,
+			"bodyScore": 78,
+			"stabilityScore": 70,
+			"totalScore": 67.6,
+			"assessedAt": "2024-03-08T10:00:00+09:00"
+		},
+		"delta": {
+			"strengthScore": 5,
+			"cardioScore": 2,
+			"enduranceScore": 2,
+			"flexibilityScore": 3,
+			"bodyScore": 2,
+			"stabilityScore": 2,
+			"totalScore": 2.9
+		},
+		"percentageChange": {
+			"strengthScore": 7.14,
+			"cardioScore": 3.45,
+			"enduranceScore": 2.94,
+			"flexibilityScore": 4.84,
+			"bodyScore": 2.56,
+			"stabilityScore": 2.86,
+			"totalScore": 4.29
+		}
+	},
+	"message": "능력치 비교 성공"
+}
+```
+
+**헥사곤 API 응답 예시** (`GET /api/members/:memberId/abilities/hexagon`):
+
+```json
+{
+	"success": true,
+	"data": {
+		"indicators": [
+			{ "name": "하체 근력", "score": 75 },
+			{ "name": "심폐 지구력", "score": 60 },
+			{ "name": "근지구력", "score": 70 },
+			{ "name": "유연성", "score": 65 },
+			{ "name": "체성분 밸런스", "score": 80 },
+			{ "name": "부상 안정성", "score": 72 }
+		],
+		"assessedAt": "2024-03-15T10:00:00+09:00",
+		"version": "v1"
+	},
+	"message": "능력치 헥사곤 조회 성공"
+}
+```
+
+**히스토리 API 응답 예시** (`GET /api/members/:memberId/abilities/history`):
+
+```json
+{
+	"success": true,
+	"data": {
+		"history": [
+			{
+				"assessedAt": "2024-03-15T10:00:00+09:00",
+				"indicators": [
+					{ "name": "하체 근력", "score": 75 },
+					{ "name": "심폐 지구력", "score": 60 },
+					{ "name": "근지구력", "score": 70 },
+					{ "name": "유연성", "score": 65 },
+					{ "name": "체성분 밸런스", "score": 80 },
+					{ "name": "부상 안정성", "score": 72 }
+				],
+				"version": "v1"
+			},
+			{
+				"assessedAt": "2024-03-08T10:00:00+09:00",
+				"indicators": [
+					{ "name": "하체 근력", "score": 70 },
+					{ "name": "심폐 지구력", "score": 58 },
+					{ "name": "근지구력", "score": 68 },
+					{ "name": "유연성", "score": 62 },
+					{ "name": "체성분 밸런스", "score": 78 },
+					{ "name": "부상 안정성", "score": 70 }
+				],
+				"version": "v1"
+			}
+		]
+	},
+	"message": "체력 테스트 히스토리 조회 성공"
+}
+```
+
+> **1차피드백 반영**: 6개 영역으로 확장 (유연성 추가), 지표 이름 변경
 
 ### 부상 관리 (`/api/members/:memberId/injuries`)
 
@@ -559,6 +670,29 @@ INTERNAL_SERVER_ERROR; // 서버 오류
 | GET    | `/risk-members`   | 위험 신호 회원 리스트          | ADMIN, TRAINER |
 
 **riskType**: `DECLINE` | `INJURY` | `INACTIVE`
+
+**운영 헥사곤 API 응답 예시** (`GET /api/insights/hexagon`):
+
+```json
+{
+	"success": true,
+	"data": {
+		"indicators": [
+			{ "name": "하체 근력", "score": 68 },
+			{ "name": "심폐 지구력", "score": 65 },
+			{ "name": "근지구력", "score": 70 },
+			{ "name": "유연성", "score": 62 },
+			{ "name": "체성분 밸런스", "score": 75 },
+			{ "name": "부상 안정성", "score": 72 }
+		],
+		"assessedAt": "2024-03-15T10:00:00+09:00",
+		"version": "v1"
+	},
+	"message": "운영 능력치 헥사곤 조회 성공"
+}
+```
+
+> **1차피드백 반영**: 6개 영역으로 확장 (유연성 추가), 지표 이름 변경
 
 ---
 
@@ -643,8 +777,8 @@ src/
 ### 2. 능력치 점수
 
 - **0-100 점수**: 모든 능력치 점수는 0-100 범위
-- **5개 영역**: 근력(STRENGTH), 심폐(CARDIO), 지구력(ENDURANCE), 신체(BODY), 안정성(STABILITY)
-- **종합 점수**: 5개 영역의 가중 평균
+- **6개 영역**: 하체 근력(STRENGTH), 심폐 지구력(CARDIO), 근지구력(ENDURANCE), 유연성(FLEXIBILITY), 체성분 밸런스(BODY), 부상 안정성(STABILITY)
+- **종합 점수**: 6개 영역의 가중 평균
 
 ### 3. 부상-평가 제한
 
