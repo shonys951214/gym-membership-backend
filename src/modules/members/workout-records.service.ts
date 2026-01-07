@@ -10,6 +10,11 @@ import { WorkoutVolumeQueryDto, VolumePeriod } from './dto/workout-volume-query.
 import { ApiExceptions } from '../../common/exceptions';
 import { PTSessionsService } from './pt-sessions.service';
 import { MembersService } from './members.service';
+import { WorkoutHelper } from '../../common/utils/workout-helper';
+import { PTUsageHelper } from '../../common/utils/pt-usage-helper';
+import { QueryBuilderHelper } from '../../common/utils/query-builder-helper';
+import { DateRangeHelper } from '../../common/utils/date-range-helper';
+import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 
 @Injectable()
 export class WorkoutRecordsService {
@@ -38,29 +43,16 @@ export class WorkoutRecordsService {
 		await this.memberRepository.findOneOrFail({ where: { id: memberId } });
 
 		const queryBuilder = this.workoutRecordRepository
-			.createQueryBuilder('record')
-			.where('record.memberId = :memberId', { memberId })
-			.orderBy('record.workoutDate', 'DESC')
-			.addOrderBy('record.createdAt', 'DESC');
+			.createQueryBuilder('record');
 
-		if (startDate) {
-			queryBuilder.andWhere('record.workoutDate >= :startDate', {
-				startDate,
-			});
-		}
-
-		if (endDate) {
-			queryBuilder.andWhere('record.workoutDate <= :endDate', {
-				endDate,
-			});
-		}
+		QueryBuilderHelper.addMemberIdFilter(queryBuilder, 'record.memberId', memberId);
+		QueryBuilderHelper.addOrderBy(queryBuilder, 'record.workoutDate', 'DESC');
+		QueryBuilderHelper.addAdditionalOrderBy(queryBuilder, 'record.createdAt', 'DESC');
+		QueryBuilderHelper.addDateRangeFilter(queryBuilder, 'record.workoutDate', startDate, endDate);
 
 		const total = await queryBuilder.getCount();
-
-		const records = await queryBuilder
-			.skip((page - 1) * pageSize)
-			.take(pageSize)
-			.getMany();
+		QueryBuilderHelper.addPagination(queryBuilder, page, pageSize);
+		const records = await queryBuilder.getMany();
 
 		return { records, total };
 	}
@@ -89,48 +81,26 @@ export class WorkoutRecordsService {
 		// workoutType 기본값 처리
 		const workoutType = createDto.workoutType ?? WorkoutType.PERSONAL;
 
-		// weight, reps, sets 기본값 처리 (선택적 필드)
-		const weight = createDto.weight ?? 0;
-		const reps = createDto.reps ?? 1;
-		const sets = createDto.sets ?? 1;
-
-		// 볼륨 자동 계산
-		const volume = weight * reps * sets;
+		// weight, reps, sets 기본값 처리 및 볼륨 계산
+		const { weight, reps, sets, volume } = WorkoutHelper.normalizeWorkoutValues(
+			createDto.weight,
+			createDto.reps,
+			createDto.sets,
+		);
 
 		// PT 타입이고 ptSessionId가 없으면 자동으로 PT 세션 생성 및 횟수 차감
 		let ptSessionId = createDto.ptSessionId;
 		if (workoutType === WorkoutType.PT && !ptSessionId) {
-			// PT 횟수 확인 (PTUsage가 없거나 남은 횟수가 0이면 에러)
-			const ptUsage = await this.ptUsageRepository.findOne({
-				where: { memberId },
-				order: { createdAt: 'DESC' },
-			});
+			const ptUsage = await PTUsageHelper.getLatestPTUsage(this.ptUsageRepository, memberId);
+			PTUsageHelper.validatePTUsage(ptUsage, memberId, this.logger);
 
-			if (!ptUsage) {
-				this.logger.warn(
-					`PT 횟수 정보가 없습니다. PT 운동 기록을 생성할 수 없습니다. (MemberId: ${memberId})`,
-				);
-				throw ApiExceptions.badRequest(
-					'PT 횟수 정보가 없습니다. PT 세션 및 횟수 관리에서 먼저 PT 횟수를 추가해주세요.',
-				);
-			}
-
-			if (ptUsage.remainingCount <= 0) {
-				this.logger.warn(
-					`PT 횟수가 부족합니다. 남은 횟수: ${ptUsage.remainingCount} (MemberId: ${memberId})`,
-				);
-				throw ApiExceptions.badRequest(
-					`PT 횟수가 부족합니다. 남은 횟수: ${ptUsage.remainingCount}회. PT 세션 및 횟수 관리에서 횟수를 추가해주세요.`,
-				);
-			}
-
-			// PT 횟수 차감 (먼저 차감하여 중복 방지)
-			ptUsage.remainingCount -= 1;
-			ptUsage.usedCount += 1;
-			ptUsage.lastUsedDate = new Date(createDto.workoutDate);
-			await this.ptUsageRepository.save(ptUsage);
-			this.logger.log(
-				`PT 횟수 자동 차감: 남은 횟수 ${ptUsage.remainingCount} (MemberId: ${memberId})`,
+			// PT 횟수 차감
+			await PTUsageHelper.deductPTUsage(
+				this.ptUsageRepository,
+				ptUsage!,
+				new Date(createDto.workoutDate),
+				this.logger,
+				memberId,
 			);
 
 			// PT 세션 자동 생성
@@ -147,9 +117,7 @@ export class WorkoutRecordsService {
 				);
 			} catch (error) {
 				// PT 세션 생성 실패 시 횟수 복구
-				ptUsage.remainingCount += 1;
-				ptUsage.usedCount -= 1;
-				await this.ptUsageRepository.save(ptUsage);
+				await PTUsageHelper.restorePTUsage(this.ptUsageRepository, ptUsage, this.logger, memberId);
 				this.logger.error(
 					`PT 세션 자동 생성 실패. PT 횟수 복구됨: ${error.message} (MemberId: ${memberId})`,
 				);
@@ -184,40 +152,11 @@ export class WorkoutRecordsService {
 	): Promise<WorkoutRecord> {
 		const record = await this.findOne(id, memberId);
 
-		// 업데이트할 필드가 있으면 적용
-		if (updateDto.workoutType) {
-			record.workoutType = updateDto.workoutType;
-		}
-		if (updateDto.workoutDate) {
-			record.workoutDate = new Date(updateDto.workoutDate);
-		}
-		if (updateDto.bodyPart) {
-			record.bodyPart = updateDto.bodyPart;
-		}
-		if (updateDto.exerciseName) {
-			record.exerciseName = updateDto.exerciseName;
-		}
-		if (updateDto.weight !== undefined) {
-			record.weight = updateDto.weight;
-		}
-		if (updateDto.reps !== undefined) {
-			record.reps = updateDto.reps;
-		}
-		if (updateDto.sets !== undefined) {
-			record.sets = updateDto.sets;
-		}
-		if (updateDto.duration !== undefined) {
-			record.duration = updateDto.duration;
-		}
-		if (updateDto.ptSessionId !== undefined) {
-			record.ptSessionId = updateDto.ptSessionId;
-		}
-		if (updateDto.trainerComment !== undefined) {
-			record.trainerComment = updateDto.trainerComment;
-		}
+		// 업데이트할 필드 적용
+		EntityUpdateHelper.updateFieldsWithDateConversion(record, updateDto, ['workoutDate']);
 
-		// 볼륨 재계산
-		record.volume = record.weight * record.reps * record.sets;
+		// 볼륨 재계산 (weight, reps, sets 중 하나라도 변경되었을 수 있음)
+		record.volume = WorkoutHelper.calculateVolume(record.weight, record.reps, record.sets);
 
 		return this.workoutRecordRepository.save(record);
 	}
@@ -228,28 +167,13 @@ export class WorkoutRecordsService {
 		// PT 타입이고 ptSessionId가 있으면 PT 세션도 삭제하고 횟수 복구
 		if (record.workoutType === WorkoutType.PT && record.ptSessionId) {
 			try {
-				// PT 세션 삭제 (Member의 completedSessions 자동 감소됨)
 				await this.ptSessionsService.remove(record.ptSessionId, memberId);
-
-				// PT 횟수 복구 (PTUsage 업데이트)
-				const ptUsage = await this.ptUsageRepository.findOne({
-					where: { memberId },
-					order: { createdAt: 'DESC' },
-				});
-
-				if (ptUsage) {
-					ptUsage.remainingCount += 1;
-					ptUsage.usedCount = Math.max(0, ptUsage.usedCount - 1);
-					await this.ptUsageRepository.save(ptUsage);
-					this.logger.log(
-						`PT 횟수 복구: 남은 횟수 ${ptUsage.remainingCount} (MemberId: ${memberId})`,
-					);
-				}
+				const ptUsage = await PTUsageHelper.getLatestPTUsage(this.ptUsageRepository, memberId);
+				await PTUsageHelper.restorePTUsage(this.ptUsageRepository, ptUsage, this.logger, memberId);
 			} catch (error) {
 				this.logger.error(
 					`PT 세션 삭제 실패: ${error.message} (MemberId: ${memberId}, SessionId: ${record.ptSessionId})`,
 				);
-				// PT 세션 삭제 실패해도 운동 기록은 삭제
 			}
 		}
 
@@ -359,14 +283,7 @@ export class WorkoutRecordsService {
 
 		// 주간 분석
 		if (!period || period === 'WEEKLY') {
-			const now = new Date();
-			const dayOfWeek = now.getDay();
-			const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-			const weekStart = new Date(now);
-			weekStart.setDate(now.getDate() - diff);
-			weekStart.setHours(0, 0, 0, 0);
-			const weekEnd = new Date(now);
-			weekEnd.setHours(23, 59, 59, 999);
+			const { start: weekStart, end: weekEnd } = DateRangeHelper.getWeekRange();
 
 			const weeklyRecords = await this.workoutRecordRepository.find({
 				where: {
@@ -413,11 +330,7 @@ export class WorkoutRecordsService {
 
 		// 월간 분석
 		if (!period || period === 'MONTHLY') {
-			const now = new Date();
-			const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-			monthStart.setHours(0, 0, 0, 0);
-			const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-			monthEnd.setHours(23, 59, 59, 999);
+			const { start: monthStart, end: monthEnd } = DateRangeHelper.getMonthRange();
 
 			const monthlyRecords = await this.workoutRecordRepository.find({
 				where: {
@@ -448,8 +361,8 @@ export class WorkoutRecordsService {
 
 			result.monthly = {
 				period: 'MONTHLY',
-				startDate: monthStart.toISOString().split('T')[0],
-				endDate: monthEnd.toISOString().split('T')[0],
+				startDate: DateRangeHelper.formatDateString(monthStart),
+				endDate: DateRangeHelper.formatDateString(monthEnd),
 				bodyPartVolumes: Array.from(monthlyMap.entries()).map(
 					([bodyPart, data]) => ({
 						bodyPart,

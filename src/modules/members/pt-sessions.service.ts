@@ -6,6 +6,7 @@ import { Member } from '../../entities/member.entity';
 import { CreatePTSessionDto } from './dto/create-pt-session.dto';
 import { UpdatePTSessionDto } from './dto/update-pt-session.dto';
 import { ApiExceptions } from '../../common/exceptions';
+import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 
 @Injectable()
 export class PTSessionsService {
@@ -114,17 +115,7 @@ export class PTSessionsService {
 		updateDto: UpdatePTSessionDto,
 	): Promise<PTSession> {
 		const session = await this.findOne(id, memberId);
-
-		if (updateDto.sessionDate) {
-			session.sessionDate = new Date(updateDto.sessionDate);
-		}
-		if (updateDto.mainContent !== undefined) {
-			session.mainContent = updateDto.mainContent;
-		}
-		if (updateDto.trainerComment !== undefined) {
-			session.trainerComment = updateDto.trainerComment;
-		}
-
+		EntityUpdateHelper.updateFieldsWithDateConversion(session, updateDto, ['sessionDate']);
 		return this.ptSessionRepository.save(session);
 	}
 

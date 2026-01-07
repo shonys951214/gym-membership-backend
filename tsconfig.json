@@ -20,6 +20,7 @@
     "paths": {
       "@/*": ["src/*"]
     }
-  }
+  },
+  "exclude": ["node_modules", "dist", "front", "**/*.spec.ts", "**/*.test.ts"]
 }
 

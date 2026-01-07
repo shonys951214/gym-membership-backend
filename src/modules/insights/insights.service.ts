@@ -6,6 +6,8 @@ import { Member } from "../../entities/member.entity";
 import { Assessment } from "../../entities/assessment.entity";
 import { MemberStatus } from "../../common/enums";
 import { DateHelper } from "../../common/utils/date-helper";
+import { SnapshotNormalizer } from "../../common/utils/snapshot-normalizer";
+import { AnalyticsHelper } from "../../common/utils/analytics-helper";
 
 export interface HexagonData {
 	indicators: Array<{
@@ -104,7 +106,7 @@ export class InsightsService {
 			})
 		);
 
-		const validSnapshots = latestSnapshots.filter((snapshot) => snapshot !== null) as AbilitySnapshot[];
+		const validSnapshots = SnapshotNormalizer.normalizeArray(latestSnapshots);
 
 		if (validSnapshots.length === 0) {
 			return {
@@ -112,7 +114,7 @@ export class InsightsService {
 					{ name: "하체 근력", score: 0 },
 					{ name: "심폐 지구력", score: 0 },
 					{ name: "근지구력", score: 0 },
-					{ name: "유연성", score: 0 }, // 1차피드백: 유연성 추가
+					{ name: "유연성", score: 0 },
 					{ name: "체성분 밸런스", score: 0 },
 					{ name: "부상 안정성", score: 0 },
 				],
@@ -121,28 +123,7 @@ export class InsightsService {
 			};
 		}
 
-		const averages = {
-			strengthScore: 0,
-			cardioScore: 0,
-			enduranceScore: 0,
-			flexibilityScore: 0, // 1차피드백: 유연성 추가
-			bodyScore: 0,
-			stabilityScore: 0,
-		};
-
-		validSnapshots.forEach((snapshot) => {
-			averages.strengthScore += snapshot.strengthScore || 0;
-			averages.cardioScore += snapshot.cardioScore || 0;
-			averages.enduranceScore += snapshot.enduranceScore || 0;
-			averages.flexibilityScore += snapshot.flexibilityScore || 0; // 1차피드백: 유연성 추가
-			averages.bodyScore += snapshot.bodyScore || 0;
-			averages.stabilityScore += snapshot.stabilityScore || 0;
-		});
-
-		const count = validSnapshots.length;
-		Object.keys(averages).forEach((key) => {
-			averages[key] = averages[key] / count;
-		});
+		const averages = AnalyticsHelper.calculateAverages(validSnapshots);
 
 		const latestDate = validSnapshots.reduce((latest, snapshot) => {
 			return snapshot.assessedAt > latest ? snapshot.assessedAt : latest;
@@ -186,50 +167,11 @@ export class InsightsService {
 			order: { assessedAt: "DESC" },
 		});
 
-		const calculateAverage = (snapshots: AbilitySnapshot[]) => {
-			if (snapshots.length === 0) {
-				return {
-					strengthScore: 0,
-					cardioScore: 0,
-					enduranceScore: 0,
-					bodyScore: 0,
-					stabilityScore: 0,
-					totalScore: 0,
-				};
-			}
+		const normalizedThisWeek = SnapshotNormalizer.normalizeArray(thisWeekSnapshots);
+		const normalizedLastWeek = SnapshotNormalizer.normalizeArray(lastWeekSnapshots);
 
-			const sum = snapshots.reduce(
-				(acc, snapshot) => ({
-					strengthScore: acc.strengthScore + (snapshot.strengthScore || 0),
-					cardioScore: acc.cardioScore + (snapshot.cardioScore || 0),
-					enduranceScore: acc.enduranceScore + (snapshot.enduranceScore || 0),
-					bodyScore: acc.bodyScore + (snapshot.bodyScore || 0),
-					stabilityScore: acc.stabilityScore + (snapshot.stabilityScore || 0),
-					totalScore: acc.totalScore + (snapshot.totalScore ?? 0),
-				}),
-				{
-					strengthScore: 0,
-					cardioScore: 0,
-					enduranceScore: 0,
-					bodyScore: 0,
-					stabilityScore: 0,
-					totalScore: 0,
-				}
-			);
-
-			const count = snapshots.length;
-			return {
-				strengthScore: sum.strengthScore / count,
-				cardioScore: sum.cardioScore / count,
-				enduranceScore: sum.enduranceScore / count,
-				bodyScore: sum.bodyScore / count,
-				stabilityScore: sum.stabilityScore / count,
-				totalScore: sum.totalScore / count,
-			};
-		};
-
-		const thisWeek = calculateAverage(thisWeekSnapshots);
-		const lastWeek = calculateAverage(lastWeekSnapshots);
+		const thisWeek = AnalyticsHelper.calculateAverages(normalizedThisWeek);
+		const lastWeek = AnalyticsHelper.calculateAverages(normalizedLastWeek);
 
 		const changes = {
 			strengthScore: thisWeek.strengthScore - lastWeek.strengthScore,
@@ -237,7 +179,7 @@ export class InsightsService {
 			enduranceScore: thisWeek.enduranceScore - lastWeek.enduranceScore,
 			bodyScore: thisWeek.bodyScore - lastWeek.bodyScore,
 			stabilityScore: thisWeek.stabilityScore - lastWeek.stabilityScore,
-			totalScore: (thisWeek.totalScore ?? 0) - (lastWeek.totalScore ?? 0),
+			totalScore: thisWeek.totalScore - lastWeek.totalScore,
 		};
 
 		const percentageChange = {
@@ -246,7 +188,7 @@ export class InsightsService {
 			enduranceScore: lastWeek.enduranceScore !== 0 ? (changes.enduranceScore / lastWeek.enduranceScore) * 100 : 0,
 			bodyScore: lastWeek.bodyScore !== 0 ? (changes.bodyScore / lastWeek.bodyScore) * 100 : 0,
 			stabilityScore: lastWeek.stabilityScore !== 0 ? (changes.stabilityScore / lastWeek.stabilityScore) * 100 : 0,
-			totalScore: (lastWeek.totalScore ?? 0) !== 0 ? (changes.totalScore / (lastWeek.totalScore ?? 0)) * 100 : 0,
+			totalScore: lastWeek.totalScore !== 0 ? (changes.totalScore / lastWeek.totalScore) * 100 : 0,
 		};
 
 		return {
@@ -256,7 +198,7 @@ export class InsightsService {
 				enduranceScore: Math.round(thisWeek.enduranceScore),
 				bodyScore: Math.round(thisWeek.bodyScore),
 				stabilityScore: Math.round(thisWeek.stabilityScore),
-				totalScore: Math.round(thisWeek.totalScore ?? 0),
+				totalScore: Math.round(thisWeek.totalScore),
 			},
 			lastWeek: {
 				strengthScore: Math.round(lastWeek.strengthScore),
@@ -264,7 +206,7 @@ export class InsightsService {
 				enduranceScore: Math.round(lastWeek.enduranceScore),
 				bodyScore: Math.round(lastWeek.bodyScore),
 				stabilityScore: Math.round(lastWeek.stabilityScore),
-				totalScore: Math.round(lastWeek.totalScore ?? 0),
+				totalScore: Math.round(lastWeek.totalScore),
 			},
 			changes: {
 				strengthScore: Math.round(changes.strengthScore),
@@ -272,7 +214,7 @@ export class InsightsService {
 				enduranceScore: Math.round(changes.enduranceScore),
 				bodyScore: Math.round(changes.bodyScore),
 				stabilityScore: Math.round(changes.stabilityScore),
-				totalScore: Math.round(changes.totalScore ?? 0),
+				totalScore: Math.round(changes.totalScore),
 			},
 			percentageChange: {
 				strengthScore: Math.round(percentageChange.strengthScore * 100) / 100,
@@ -280,7 +222,7 @@ export class InsightsService {
 				enduranceScore: Math.round(percentageChange.enduranceScore * 100) / 100,
 				bodyScore: Math.round(percentageChange.bodyScore * 100) / 100,
 				stabilityScore: Math.round(percentageChange.stabilityScore * 100) / 100,
-				totalScore: Math.round((percentageChange.totalScore ?? 0) * 100) / 100,
+				totalScore: Math.round(percentageChange.totalScore * 100) / 100,
 			},
 		};
 	}
@@ -303,12 +245,11 @@ export class InsightsService {
 			});
 
 			if (snapshots.length >= 2) {
-				const current = snapshots[0];
-				const previous = snapshots[1];
+				const current = SnapshotNormalizer.normalize(snapshots[0], member.id);
+				const previous = SnapshotNormalizer.normalize(snapshots[1], member.id);
 
-				// totalScore가 undefined일 수 있으므로 nullish coalescing 사용
-				const currentTotalScore = current.totalScore ?? 0;
-				const previousTotalScore = previous.totalScore ?? 0;
+				const currentTotalScore = current.totalScore;
+				const previousTotalScore = previous.totalScore;
 
 				if (currentTotalScore > 0 && previousTotalScore > 0) {
 					const declinePercentage = ((previousTotalScore - currentTotalScore) / previousTotalScore) * 100;

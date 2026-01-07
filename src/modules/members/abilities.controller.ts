@@ -10,6 +10,7 @@ import { JwtAuthGuard } from "../../common/guards";
 import { AssessmentsService } from "../assessments/assessments.service";
 import { ApiResponseHelper } from "../../common/utils/api-response";
 import { CompareSnapshotsQueryDto } from "./dto/compare-snapshots-query.dto";
+import { SnapshotNormalizer } from "../../common/utils/snapshot-normalizer";
 
 @ApiTags("abilities")
 @ApiBearerAuth("JWT-auth")
@@ -23,28 +24,13 @@ export class AbilitiesController {
 	@ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
 	async getLatestSnapshot(@Param("memberId") memberId: string) {
 		const snapshot = await this.assessmentsService.getLatestSnapshot(memberId);
+		const normalizedSnapshot = SnapshotNormalizer.normalize(snapshot, memberId);
 		
-		// snapshot이 null이면 기본 스냅샷 객체 반환 (프론트엔드 오류 방지)
-		if (!snapshot) {
-			const defaultSnapshot = {
-				id: '',
-				assessmentId: '',
-				memberId,
-				assessedAt: new Date(),
-				version: 'v1',
-				strengthScore: 0,
-				cardioScore: 0,
-				enduranceScore: 0,
-				flexibilityScore: 0,
-				bodyScore: 0,
-				stabilityScore: 0,
-				totalScore: 0,
-				createdAt: new Date(),
-			};
-			return ApiResponseHelper.success(defaultSnapshot, "능력치 스냅샷이 없습니다.");
-		}
+		const message = snapshot 
+			? "최신 능력치 조회 성공" 
+			: "능력치 스냅샷이 없습니다.";
 		
-		return ApiResponseHelper.success(snapshot, "최신 능력치 조회 성공");
+		return ApiResponseHelper.success(normalizedSnapshot, message);
 	}
 
 	@Get("snapshots")

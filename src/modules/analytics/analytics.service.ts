@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { AbilitySnapshot } from '../../entities/ability-snapshot.entity';
 import { Member } from '../../entities/member.entity';
 import { ApiExceptions } from '../../common/exceptions';
+import { SnapshotNormalizer } from '../../common/utils/snapshot-normalizer';
+import { AnalyticsHelper } from '../../common/utils/analytics-helper';
 
 @Injectable()
 export class AnalyticsService {
@@ -23,68 +25,28 @@ export class AnalyticsService {
     strengthScore: number;
     cardioScore: number;
     enduranceScore: number;
-    flexibilityScore: number; // 1차피드백: 유연성 추가
+    flexibilityScore: number;
     bodyScore: number;
     stabilityScore: number;
     totalScore: number;
     totalMembers: number;
   }> {
-    // 각 회원의 최신 스냅샷만 가져오기
     const members = await this.memberRepository.find();
     const latestSnapshots = await Promise.all(
-      members.map(async (member) => {
-        return this.abilitySnapshotRepository.findOne({
+      members.map((member) =>
+        this.abilitySnapshotRepository.findOne({
           where: { memberId: member.id },
           order: { assessedAt: 'DESC' },
-        });
-      }),
+        }),
+      ),
     );
 
-    const validSnapshots = latestSnapshots.filter(
-      (snapshot) => snapshot !== null,
-    ) as AbilitySnapshot[];
-
-    if (validSnapshots.length === 0) {
-      return {
-        strengthScore: 0,
-        cardioScore: 0,
-        enduranceScore: 0,
-        flexibilityScore: 0, // 1차피드백: 유연성 추가
-        bodyScore: 0,
-        stabilityScore: 0,
-        totalScore: 0,
-        totalMembers: 0,
-      };
-    }
-
-    const averages = {
-      strengthScore: 0,
-      cardioScore: 0,
-      enduranceScore: 0,
-      flexibilityScore: 0, // 1차피드백: 유연성 추가
-      bodyScore: 0,
-      stabilityScore: 0,
-      totalScore: 0,
-    };
-
-    validSnapshots.forEach((snapshot) => {
-      averages.strengthScore += snapshot.strengthScore || 0;
-      averages.cardioScore += snapshot.cardioScore || 0;
-      averages.enduranceScore += snapshot.enduranceScore || 0;
-      averages.flexibilityScore += snapshot.flexibilityScore || 0; // 1차피드백: 유연성 추가
-      averages.bodyScore += snapshot.bodyScore || 0;
-      averages.stabilityScore += snapshot.stabilityScore || 0;
-      averages.totalScore += snapshot.totalScore ?? 0;
-    });
-
-    const count = validSnapshots.length;
-    Object.keys(averages).forEach((key) => {
-      averages[key] = averages[key] / count;
-    });
+    const averages = AnalyticsHelper.calculateAverages(latestSnapshots);
+    const validCount = SnapshotNormalizer.normalizeArray(latestSnapshots).length;
 
     return {
       ...averages,
-      totalMembers: count,
+      totalMembers: validCount,
     };
   }
 
@@ -97,7 +59,7 @@ export class AnalyticsService {
       strengthScore: number;
       cardioScore: number;
       enduranceScore: number;
-      flexibilityScore: number; // 1차피드백: 유연성 추가
+      flexibilityScore: number;
       bodyScore: number;
       stabilityScore: number;
       totalScore: number;
@@ -106,7 +68,7 @@ export class AnalyticsService {
       strengthScore: number;
       cardioScore: number;
       enduranceScore: number;
-      flexibilityScore: number; // 1차피드백: 유연성 추가
+      flexibilityScore: number;
       bodyScore: number;
       stabilityScore: number;
       totalScore: number;
@@ -125,77 +87,22 @@ export class AnalyticsService {
 		}
 
     const averages = await this.getAverages();
-
-    // 백분위 계산 (간단한 버전)
-    const percentile = {
-      strengthScore: this.calculatePercentile(
-        memberSnapshot.strengthScore || 0,
-        averages.strengthScore,
-      ),
-      cardioScore: this.calculatePercentile(
-        memberSnapshot.cardioScore || 0,
-        averages.cardioScore,
-      ),
-      enduranceScore: this.calculatePercentile(
-        memberSnapshot.enduranceScore || 0,
-        averages.enduranceScore,
-      ),
-      flexibilityScore: this.calculatePercentile(
-        memberSnapshot.flexibilityScore || 0,
-        averages.flexibilityScore,
-      ), // 1차피드백: 유연성 추가
-      bodyScore: this.calculatePercentile(
-        memberSnapshot.bodyScore || 0,
-        averages.bodyScore,
-      ),
-      stabilityScore: this.calculatePercentile(
-        memberSnapshot.stabilityScore || 0,
-        averages.stabilityScore,
-      ),
-      totalScore: this.calculatePercentile(
-        memberSnapshot.totalScore ?? 0,
-        averages.totalScore,
-      ),
-    };
-
-    // memberSnapshot 정규화 (null 값 처리)
-    const normalizedMemberSnapshot = {
-      ...memberSnapshot,
-      strengthScore: memberSnapshot.strengthScore ?? 0,
-      cardioScore: memberSnapshot.cardioScore ?? 0,
-      enduranceScore: memberSnapshot.enduranceScore ?? 0,
-      flexibilityScore: memberSnapshot.flexibilityScore ?? 0, // 1차피드백: 유연성 추가
-      bodyScore: memberSnapshot.bodyScore ?? 0,
-      stabilityScore: memberSnapshot.stabilityScore ?? 0,
-      totalScore: memberSnapshot.totalScore ?? 0,
-    };
+    const normalizedMember = SnapshotNormalizer.normalize(memberSnapshot, memberId);
+    const percentile = AnalyticsHelper.calculatePercentiles(normalizedMember, averages);
 
     return {
-      member: normalizedMemberSnapshot,
+      member: normalizedMember,
       average: {
         strengthScore: averages.strengthScore,
         cardioScore: averages.cardioScore,
         enduranceScore: averages.enduranceScore,
-        flexibilityScore: averages.flexibilityScore, // 1차피드백: 유연성 추가
+        flexibilityScore: averages.flexibilityScore,
         bodyScore: averages.bodyScore,
         stabilityScore: averages.stabilityScore,
         totalScore: averages.totalScore,
       },
       percentile,
     };
-  }
-
-  /**
-   * 간단한 백분위 계산 (실제로는 더 정교한 계산 필요)
-   */
-  private calculatePercentile(
-    memberValue: number,
-    averageValue: number,
-  ): number {
-    if (averageValue === 0) return 50;
-    const ratio = memberValue / averageValue;
-    // 평균 대비 비율을 백분위로 변환 (간단한 버전)
-    return Math.min(100, Math.max(0, (ratio - 0.5) * 100 + 50));
   }
 }
 

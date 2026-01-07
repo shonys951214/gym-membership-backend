@@ -14,6 +14,8 @@ import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { CreateAssessmentItemDto } from './dto/create-assessment-item.dto';
 import { ApiExceptions } from '../../common/exceptions';
 import { DateHelper } from '../../common/utils/date-helper';
+import { SnapshotNormalizer } from '../../common/utils/snapshot-normalizer';
+import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 
 @Injectable()
 export class AssessmentsService {
@@ -71,38 +73,8 @@ export class AssessmentsService {
       }));
     }
 
-    // AbilitySnapshot의 점수 필드 정규화
-    if (assessment.snapshot) {
-      assessment.snapshot = {
-        ...assessment.snapshot,
-        strengthScore: assessment.snapshot.strengthScore ?? 0,
-        cardioScore: assessment.snapshot.cardioScore ?? 0,
-        enduranceScore: assessment.snapshot.enduranceScore ?? 0,
-        flexibilityScore: assessment.snapshot.flexibilityScore ?? 0,
-        bodyScore: assessment.snapshot.bodyScore ?? 0,
-        stabilityScore: assessment.snapshot.stabilityScore ?? 0,
-        totalScore: assessment.snapshot.totalScore ?? 0,
-      };
-    } else {
-      // snapshot이 없으면 기본 스냅샷 객체 생성 (프론트엔드 오류 방지)
-      assessment.snapshot = {
-        id: '',
-        assessmentId: assessment.id,
-        memberId: assessment.memberId,
-        assessedAt: assessment.assessedAt,
-        version: 'v1',
-        strengthScore: 0,
-        cardioScore: 0,
-        enduranceScore: 0,
-        flexibilityScore: 0,
-        bodyScore: 0,
-        stabilityScore: 0,
-        totalScore: 0,
-        createdAt: assessment.createdAt,
-        assessment: assessment,
-        member: assessment.member,
-      } as AbilitySnapshot;
-    }
+    // AbilitySnapshot 정규화 (유틸리티 사용)
+    assessment.snapshot = SnapshotNormalizer.normalize(assessment.snapshot, assessment.memberId);
 
     return assessment;
   }
@@ -182,28 +154,11 @@ export class AssessmentsService {
 
     // 평가 삭제는 금지 (데이터 무결성)
     // 수정만 가능
-
-    if (updateAssessmentDto.assessedAt) {
-      assessment.assessedAt = new Date(updateAssessmentDto.assessedAt);
-    }
-    if (updateAssessmentDto.trainerComment !== undefined) {
-      assessment.trainerComment = updateAssessmentDto.trainerComment;
-    }
-    if (updateAssessmentDto.bodyWeight !== undefined) {
-      assessment.bodyWeight = updateAssessmentDto.bodyWeight;
-    }
-    if (updateAssessmentDto.condition !== undefined) {
-      assessment.condition = updateAssessmentDto.condition;
-    }
-    if (updateAssessmentDto.evaluationType !== undefined) {
-      assessment.evaluationType = updateAssessmentDto.evaluationType;
-    }
-    if (updateAssessmentDto.staticEvaluation !== undefined) {
-      assessment.staticEvaluation = updateAssessmentDto.staticEvaluation;
-    }
-    if (updateAssessmentDto.dynamicEvaluation !== undefined) {
-      assessment.dynamicEvaluation = updateAssessmentDto.dynamicEvaluation;
-    }
+    EntityUpdateHelper.updateFieldsWithDateConversion(
+      assessment,
+      updateAssessmentDto,
+      ['assessedAt'],
+    );
 
     const savedAssessment = await this.assessmentRepository.save(assessment);
 

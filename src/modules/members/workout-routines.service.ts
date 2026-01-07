@@ -6,6 +6,9 @@ import { Member } from '../../entities/member.entity';
 import { CreateWorkoutRoutineDto } from './dto/create-workout-routine.dto';
 import { UpdateWorkoutRoutineDto } from './dto/update-workout-routine.dto';
 import { ApiExceptions } from '../../common/exceptions';
+import { QueryBuilderHelper } from '../../common/utils/query-builder-helper';
+import { DateRangeHelper } from '../../common/utils/date-range-helper';
+import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 
 @Injectable()
 export class WorkoutRoutinesService {
@@ -37,32 +40,19 @@ export class WorkoutRoutinesService {
 			await this.memberRepository.findOneOrFail({ where: { id: memberId } });
 		}
 
-		const queryBuilder = this.workoutRoutineRepository
-			.createQueryBuilder('routine')
-			.orderBy('routine.createdAt', 'DESC');
+		const queryBuilder = this.workoutRoutineRepository.createQueryBuilder('routine');
 
 		if (memberId) {
-			queryBuilder.where('routine.memberId = :memberId', { memberId });
+			QueryBuilderHelper.addMemberIdFilter(queryBuilder, 'routine.memberId', memberId);
 		} else {
 			queryBuilder.where('routine.memberId IS NULL');
 		}
 
-		if (startDate) {
-			queryBuilder.andWhere('routine.routineDate >= :startDate', {
-				startDate,
-			});
-		}
-
-		if (endDate) {
-			queryBuilder.andWhere('routine.routineDate <= :endDate', {
-				endDate,
-			});
-		}
+		QueryBuilderHelper.addOrderBy(queryBuilder, 'routine.createdAt', 'DESC');
+		QueryBuilderHelper.addDateRangeFilter(queryBuilder, 'routine.routineDate', startDate, endDate);
 
 		if (isCompleted !== undefined) {
-			queryBuilder.andWhere('routine.isCompleted = :isCompleted', {
-				isCompleted,
-			});
+			queryBuilder.andWhere('routine.isCompleted = :isCompleted', { isCompleted });
 		}
 
 		return queryBuilder.getMany();
@@ -150,26 +140,7 @@ export class WorkoutRoutinesService {
 		updateDto: UpdateWorkoutRoutineDto,
 	): Promise<WorkoutRoutine> {
 		const routine = await this.findOne(id, memberId);
-
-		if (updateDto.routineName) {
-			routine.routineName = updateDto.routineName;
-		}
-		if (updateDto.routineDate) {
-			routine.routineDate = new Date(updateDto.routineDate);
-		}
-		if (updateDto.exercises) {
-			routine.exercises = updateDto.exercises;
-		}
-		if (updateDto.estimatedDuration) {
-			routine.estimatedDuration = updateDto.estimatedDuration;
-		}
-		if (updateDto.difficulty) {
-			routine.difficulty = updateDto.difficulty;
-		}
-		if (updateDto.isCompleted !== undefined) {
-			routine.isCompleted = updateDto.isCompleted;
-		}
-
+		EntityUpdateHelper.updateFieldsWithDateConversion(routine, updateDto, ['routineDate']);
 		return this.workoutRoutineRepository.save(routine);
 	}
 
