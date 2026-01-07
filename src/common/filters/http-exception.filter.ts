@@ -1,11 +1,4 @@
-import {
-	ExceptionFilter,
-	Catch,
-	ArgumentsHost,
-	HttpException,
-	HttpStatus,
-	Logger,
-} from "@nestjs/common";
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { Request, Response } from "express";
 import { ApiResponseHelper } from "../utils/api-response";
 import { ErrorCodes, ErrorCode } from "../utils/error-codes";
@@ -105,11 +98,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 		console.error("=".repeat(80));
 
 		// Logger에도 기록 (프로덕션 로깅 시스템용)
-		this.logger.error(
-			`${request.method} ${request.url} - ${status} - ${message}`,
-			JSON.stringify(errorContext, null, 2),
-			exception instanceof Error ? exception.stack : undefined,
-		);
+		this.logger.error(`${request.method} ${request.url} - ${status} - ${message}`, JSON.stringify(errorContext, null, 2), exception instanceof Error ? exception.stack : undefined);
 
 		// 에러 응답 반환
 		response.status(status).json(
@@ -117,8 +106,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 				path: request.url,
 				method: request.method,
 				timestamp: DateHelper.getKoreaTimeISOString(),
-			}),
+			})
 		);
 	}
 }
-

@@ -30,11 +30,15 @@ export class MembersService {
 		private ptUsageRepository: Repository<PTUsage>,
 	) {}
 
-  async findAll(): Promise<Member[]> {
-    return this.memberRepository.find({
+  async findAll(page: number = 1, pageSize: number = 10): Promise<{ members: Member[]; total: number; page: number; pageSize: number }> {
+    const skip = (page - 1) * pageSize;
+    const [members, total] = await this.memberRepository.findAndCount({
       relations: ['memberships', 'ptUsages'],
       order: { createdAt: 'DESC' },
+      skip,
+      take: pageSize,
     });
+    return { members, total, page, pageSize };
   }
 
   async findOne(id: string): Promise<Member> {

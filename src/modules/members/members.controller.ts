@@ -57,9 +57,16 @@ export class MembersController {
   @Get()
   @UseGuards(JwtRolesGuard)
   @Roles(Role.ADMIN, Role.TRAINER)
-  async findAll() {
-    const members = await this.membersService.findAll();
-    return ApiResponseHelper.success({ members, total: members.length });
+  @ApiOperation({ summary: '회원 목록 조회', description: '회원 목록을 페이지네이션과 함께 조회합니다. (ADMIN, TRAINER 권한 필요)' })
+  @ApiResponse({ status: 200, description: '회원 목록 조회 성공' })
+  async findAll(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 10;
+    const result = await this.membersService.findAll(pageNum, pageSizeNum);
+    return ApiResponseHelper.success(result, '회원 목록 조회 성공');
   }
 
   @Get(':id')

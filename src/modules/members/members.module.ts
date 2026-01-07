@@ -8,6 +8,7 @@ import { WorkoutRoutinesService } from "./workout-routines.service";
 import { InjuriesController } from "./injuries.controller";
 import { AbilitiesController } from "./abilities.controller";
 import { MemberAnalyticsController } from "./analytics.controller";
+import { WorkoutRoutinesController } from "./workout-routines.controller";
 import { Member } from "../../entities/member.entity";
 import { Membership } from "../../entities/membership.entity";
 import { PTUsage } from "../../entities/pt-usage.entity";
@@ -39,6 +40,7 @@ import { AssessmentsModule } from "../assessments/assessments.module";
 		InjuriesController,
 		AbilitiesController,
 		MemberAnalyticsController,
+		WorkoutRoutinesController,
 	],
 	providers: [MembersService, WorkoutRecordsService, PTSessionsService, WorkoutRoutinesService],
 	exports: [MembersService, WorkoutRecordsService, PTSessionsService, WorkoutRoutinesService],
