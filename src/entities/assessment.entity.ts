@@ -14,7 +14,7 @@ import {
 import { Member } from './member.entity';
 import { AssessmentItem } from './assessment-item.entity';
 import { AbilitySnapshot } from './ability-snapshot.entity';
-import { AssessmentType, Condition } from '../common/enums';
+import { AssessmentType, Condition, EvaluationType } from '../common/enums';
 
 @Index('idx_assessments_member_id', ['memberId'])
 @Index('idx_assessments_assessed_at', ['assessedAt'])
@@ -40,6 +40,62 @@ export class Assessment {
     name: 'assessment_type',
   })
   assessmentType: AssessmentType;
+
+  // 1차피드백: 평가 위계 구조 - 정적/동적 평가 구분
+  @Column({
+    type: 'enum',
+    enum: EvaluationType,
+    name: 'evaluation_type',
+    nullable: true, // 기존 데이터 호환성을 위해 nullable
+  })
+  evaluationType?: EvaluationType;
+
+  // 정적평가 데이터 (설문조사, 체성분 평가, 육안체형평가)
+  @Column({ type: 'jsonb', name: 'static_evaluation', nullable: true })
+  staticEvaluation?: {
+    survey?: {
+      // 설문조사 데이터
+      [key: string]: any;
+    };
+    bodyComposition?: {
+      // 체성분 평가 (인바디)
+      muscleMass?: number; // 근육량 (kg)
+      bodyFatPercentage?: number; // 체지방률 (%)
+      bodyFatMass?: number; // 체지방량 (kg)
+      boneMass?: number; // 골격근량 (kg)
+      bmr?: number; // 기초대사량 (kcal)
+      [key: string]: any;
+    };
+    visualAssessment?: {
+      // 육안체형평가 (앞, 옆, 뒷 모습)
+      frontPhoto?: string; // 사진 URL 또는 base64
+      sidePhoto?: string;
+      backPhoto?: string;
+      notes?: string; // 불균형 체크 메모
+      [key: string]: any;
+    };
+  };
+
+  // 동적평가 데이터 (유연성, 근력, 밸런스, 유산소성 평가)
+  @Column({ type: 'jsonb', name: 'dynamic_evaluation', nullable: true })
+  dynamicEvaluation?: {
+    flexibility?: {
+      // 유연성 평가
+      [key: string]: any;
+    };
+    strength?: {
+      // 근력 평가
+      [key: string]: any;
+    };
+    balance?: {
+      // 밸런스 평가
+      [key: string]: any;
+    };
+    cardio?: {
+      // 유산소성 평가
+      [key: string]: any;
+    };
+  };
 
   @Column({ name: 'is_initial', default: false })
   isInitial: boolean;

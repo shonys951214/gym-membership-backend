@@ -6,7 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Assessment } from '../../entities/assessment.entity';
 import { AssessmentItem } from '../../entities/assessment-item.entity';
-import { AssessmentType, Condition, Category } from '../../common/enums';
+import { AssessmentType, Condition, Category, EvaluationType } from '../../common/enums';
 import { AbilitySnapshot } from '../../entities/ability-snapshot.entity';
 import { ScoreCalculator } from '../../common/utils/score-calculator';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
@@ -30,11 +30,14 @@ export class AssessmentsService {
 	) {}
 
   async findAll(memberId: string): Promise<Assessment[]> {
-    return this.assessmentRepository.find({
+    const assessments = await this.assessmentRepository.find({
       where: { memberId },
       relations: ['items', 'snapshot'],
       order: { assessedAt: 'DESC' },
     });
+    
+    // null 값 정규화 (프론트엔드 toFixed 오류 방지)
+    return assessments.map(assessment => this.normalizeAssessment(assessment));
   }
 
   async findOne(id: string, memberId: string): Promise<Assessment> {
@@ -49,6 +52,38 @@ export class AssessmentsService {
 			);
 			throw ApiExceptions.assessmentNotFound();
 		}
+
+    // null 값 정규화 (프론트엔드 toFixed 오류 방지)
+    return this.normalizeAssessment(assessment);
+  }
+
+  /**
+   * 평가 데이터 정규화 (null 값 처리)
+   * 프론트엔드에서 toFixed() 오류 방지를 위해 모든 점수 필드를 0으로 변환
+   */
+  private normalizeAssessment(assessment: Assessment): Assessment {
+    // AssessmentItem의 score 정규화
+    if (assessment.items) {
+      assessment.items = assessment.items.map(item => ({
+        ...item,
+        score: item.score ?? 0,
+        value: item.value ?? 0,
+      }));
+    }
+
+    // AbilitySnapshot의 점수 필드 정규화
+    if (assessment.snapshot) {
+      assessment.snapshot = {
+        ...assessment.snapshot,
+        strengthScore: assessment.snapshot.strengthScore ?? 0,
+        cardioScore: assessment.snapshot.cardioScore ?? 0,
+        enduranceScore: assessment.snapshot.enduranceScore ?? 0,
+        flexibilityScore: assessment.snapshot.flexibilityScore ?? 0,
+        bodyScore: assessment.snapshot.bodyScore ?? 0,
+        stabilityScore: assessment.snapshot.stabilityScore ?? 0,
+        totalScore: assessment.snapshot.totalScore ?? 0,
+      };
+    }
 
     return assessment;
   }
@@ -77,6 +112,9 @@ export class AssessmentsService {
     const assessment = this.assessmentRepository.create({
       memberId,
       assessmentType: createAssessmentDto.assessmentType,
+      evaluationType: createAssessmentDto.evaluationType,
+      staticEvaluation: createAssessmentDto.staticEvaluation,
+      dynamicEvaluation: createAssessmentDto.dynamicEvaluation,
       isInitial: createAssessmentDto.assessmentType === AssessmentType.INITIAL,
       assessedAt: new Date(createAssessmentDto.assessedAt),
       trainerComment: createAssessmentDto.trainerComment,
@@ -138,6 +176,15 @@ export class AssessmentsService {
     if (updateAssessmentDto.condition !== undefined) {
       assessment.condition = updateAssessmentDto.condition;
     }
+    if (updateAssessmentDto.evaluationType !== undefined) {
+      assessment.evaluationType = updateAssessmentDto.evaluationType;
+    }
+    if (updateAssessmentDto.staticEvaluation !== undefined) {
+      assessment.staticEvaluation = updateAssessmentDto.staticEvaluation;
+    }
+    if (updateAssessmentDto.dynamicEvaluation !== undefined) {
+      assessment.dynamicEvaluation = updateAssessmentDto.dynamicEvaluation;
+    }
 
     const savedAssessment = await this.assessmentRepository.save(assessment);
 
@@ -180,19 +227,45 @@ export class AssessmentsService {
 
   // 능력치 관련 메서드
   async getLatestSnapshot(memberId: string): Promise<AbilitySnapshot | null> {
-    return this.abilitySnapshotRepository.findOne({
+    const snapshot = await this.abilitySnapshotRepository.findOne({
       where: { memberId },
       order: { assessedAt: 'DESC' },
       relations: ['assessment'],
     });
+    
+    if (!snapshot) {
+      return null;
+    }
+    
+    // null 값 정규화
+    return this.normalizeSnapshot(snapshot);
+  }
+
+  /**
+   * 스냅샷 데이터 정규화 (null 값 처리)
+   */
+  private normalizeSnapshot(snapshot: AbilitySnapshot): AbilitySnapshot {
+    return {
+      ...snapshot,
+      strengthScore: snapshot.strengthScore ?? 0,
+      cardioScore: snapshot.cardioScore ?? 0,
+      enduranceScore: snapshot.enduranceScore ?? 0,
+      flexibilityScore: snapshot.flexibilityScore ?? 0,
+      bodyScore: snapshot.bodyScore ?? 0,
+      stabilityScore: snapshot.stabilityScore ?? 0,
+      totalScore: snapshot.totalScore ?? 0,
+    };
   }
 
   async getSnapshots(memberId: string): Promise<AbilitySnapshot[]> {
-    return this.abilitySnapshotRepository.find({
+    const snapshots = await this.abilitySnapshotRepository.find({
       where: { memberId },
       order: { assessedAt: 'DESC' },
       relations: ['assessment'],
     });
+    
+    // null 값 정규화
+    return snapshots.map(snapshot => this.normalizeSnapshot(snapshot));
   }
 
 	async compareSnapshots(
@@ -215,8 +288,9 @@ export class AssessmentsService {
 			throw ApiExceptions.abilitySnapshotNotFound();
 		}
 
-		const current = snapshots[0];
-		const previous = snapshots.length > 1 ? snapshots[prevCount] : null;
+		// null 값 정규화
+		const current = this.normalizeSnapshot(snapshots[0]);
+		const previous = snapshots.length > 1 ? this.normalizeSnapshot(snapshots[prevCount]) : null;
 
 		const delta: Record<string, number> = {};
 		const percentageChange: Record<string, number> = {};
@@ -233,8 +307,8 @@ export class AssessmentsService {
 			];
 
 			fields.forEach((field) => {
-				const currentValue = current[field] || 0;
-				const previousValue = previous[field] || 0;
+				const currentValue = current[field] ?? 0;
+				const previousValue = previous[field] ?? 0;
 				delta[field] = currentValue - previousValue;
 				percentageChange[field] =
 					previousValue !== 0
@@ -268,12 +342,12 @@ export class AssessmentsService {
 
 		return {
 			indicators: [
-				{ name: "하체 근력", score: snapshot.strengthScore || 0 },
-				{ name: "심폐 지구력", score: snapshot.cardioScore || 0 },
-				{ name: "근지구력", score: snapshot.enduranceScore || 0 },
-				{ name: "유연성", score: snapshot.flexibilityScore || 0 }, // 1차피드백: 유연성 추가
-				{ name: "체성분 밸런스", score: snapshot.bodyScore || 0 },
-				{ name: "부상 안정성", score: snapshot.stabilityScore || 0 },
+				{ name: "하체 근력", score: snapshot.strengthScore ?? 0 },
+				{ name: "심폐 지구력", score: snapshot.cardioScore ?? 0 },
+				{ name: "근지구력", score: snapshot.enduranceScore ?? 0 },
+				{ name: "유연성", score: snapshot.flexibilityScore ?? 0 }, // 1차피드백: 유연성 추가
+				{ name: "체성분 밸런스", score: snapshot.bodyScore ?? 0 },
+				{ name: "부상 안정성", score: snapshot.stabilityScore ?? 0 },
 			],
 			assessedAt: DateHelper.toKoreaTimeISOString(snapshot.assessedAt),
 			version: snapshot.version || "v1",
@@ -296,12 +370,12 @@ export class AssessmentsService {
 			history: snapshots.map((snapshot) => ({
 				assessedAt: DateHelper.toKoreaTimeISOString(snapshot.assessedAt),
 				indicators: [
-					{ name: "하체 근력", score: snapshot.strengthScore || 0 },
-					{ name: "심폐 지구력", score: snapshot.cardioScore || 0 },
-					{ name: "근지구력", score: snapshot.enduranceScore || 0 },
-					{ name: "유연성", score: snapshot.flexibilityScore || 0 }, // 1차피드백: 유연성 추가
-					{ name: "체성분 밸런스", score: snapshot.bodyScore || 0 },
-					{ name: "부상 안정성", score: snapshot.stabilityScore || 0 },
+					{ name: "하체 근력", score: snapshot.strengthScore ?? 0 },
+					{ name: "심폐 지구력", score: snapshot.cardioScore ?? 0 },
+					{ name: "근지구력", score: snapshot.enduranceScore ?? 0 },
+					{ name: "유연성", score: snapshot.flexibilityScore ?? 0 }, // 1차피드백: 유연성 추가
+					{ name: "체성분 밸런스", score: snapshot.bodyScore ?? 0 },
+					{ name: "부상 안정성", score: snapshot.stabilityScore ?? 0 },
 				],
 				version: snapshot.version || "v1",
 			})),

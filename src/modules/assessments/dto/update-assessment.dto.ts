@@ -1,7 +1,7 @@
 import { IsOptional, IsDateString, IsString, IsNumber, IsEnum, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Condition } from '../../../common/enums';
+import { Condition, EvaluationType } from '../../../common/enums';
 import { CreateAssessmentItemDto } from './create-assessment-item.dto';
 
 export class UpdateAssessmentDto {
@@ -37,6 +37,39 @@ export class UpdateAssessmentDto {
 	@IsOptional()
 	@IsEnum(Condition, { message: '올바른 컨디션이 아닙니다.' })
 	condition?: Condition;
+
+	@ApiPropertyOptional({
+		description: '평가 위계 타입 (정적/동적 평가 구분)',
+		enum: EvaluationType,
+		example: EvaluationType.DYNAMIC,
+		required: false,
+	})
+	@IsOptional()
+	@IsEnum(EvaluationType, { message: '올바른 평가 위계 타입이 아닙니다.' })
+	evaluationType?: EvaluationType;
+
+	@ApiPropertyOptional({
+		description: '정적평가 데이터 (설문조사, 체성분 평가, 육안체형평가)',
+		required: false,
+	})
+	@IsOptional()
+	staticEvaluation?: {
+		survey?: any;
+		bodyComposition?: any;
+		visualAssessment?: any;
+	};
+
+	@ApiPropertyOptional({
+		description: '동적평가 데이터 (유연성, 근력, 밸런스, 유산소성 평가)',
+		required: false,
+	})
+	@IsOptional()
+	dynamicEvaluation?: {
+		flexibility?: any;
+		strength?: any;
+		balance?: any;
+		cardio?: any;
+	};
 
 	@ApiPropertyOptional({
 		description: '평가 항목 배열',
