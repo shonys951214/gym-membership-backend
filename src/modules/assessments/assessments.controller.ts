@@ -21,8 +21,7 @@ import {
 import { AssessmentsService } from './assessments.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
+import { JwtAuthGuard, JwtRolesGuard } from '../../common/guards';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../../common/enums';
 import { ApiResponseHelper } from '../../common/utils/api-response';
@@ -62,7 +61,7 @@ export class AssessmentsController {
 
 	@Post()
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({ summary: '평가 생성', description: '새로운 평가를 생성합니다. (ADMIN, TRAINER 권한 필요)' })
 	@ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
@@ -82,7 +81,7 @@ export class AssessmentsController {
 	}
 
   @Put(':id')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtRolesGuard)
   @Roles(Role.ADMIN, Role.TRAINER)
   @ApiOperation({ summary: '평가 수정', description: '기존 평가를 수정합니다. (ADMIN, TRAINER 권한 필요)' })
   @ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })

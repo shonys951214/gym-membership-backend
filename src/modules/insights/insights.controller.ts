@@ -1,8 +1,7 @@
 import { Controller, Get, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 import { InsightsService } from "./insights.service";
-import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
-import { RolesGuard } from "../../common/guards/roles.guard";
+import { JwtRolesGuard } from "../../common/guards";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { Role } from "../../common/enums";
 import { ApiResponseHelper } from "../../common/utils/api-response";
@@ -10,7 +9,7 @@ import { ApiResponseHelper } from "../../common/utils/api-response";
 @ApiTags("insights")
 @ApiBearerAuth("JWT-auth")
 @Controller("api/insights")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtRolesGuard)
 @Roles(Role.ADMIN, Role.TRAINER)
 export class InsightsController {
 	constructor(private readonly insightsService: InsightsService) {}

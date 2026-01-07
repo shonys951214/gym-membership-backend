@@ -6,7 +6,7 @@ import {
 	ApiParam,
 } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../common/guards';
 import { ApiResponseHelper } from '../../common/utils/api-response';
 
 @ApiTags("analytics")

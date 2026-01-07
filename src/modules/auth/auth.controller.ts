@@ -22,8 +22,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
-import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
-import { RolesGuard } from "../../common/guards/roles.guard";
+import { JwtAuthGuard, JwtRolesGuard } from "../../common/guards";
 import { Roles } from "./decorators/roles.decorator";
 import { Role } from "../../common/enums";
 import { Public } from "../../common/decorators";
@@ -150,7 +149,7 @@ export class AuthController {
 	 * 사용자 정보 수정 (관리자용)
 	 */
 	@Put('users/:id')
-	@UseGuards(JwtAuthGuard, RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN)
 	@ApiBearerAuth("JWT-auth")
 	@ApiOperation({ summary: '사용자 정보 수정 (관리자)', description: '관리자가 다른 사용자의 정보를 수정합니다. (이름, 이메일, 비밀번호, 역할)' })
@@ -176,7 +175,7 @@ export class AuthController {
 	 * 승인 대기 중인 TRAINER 목록 조회 (ADMIN만)
 	 */
 	@Get('pending-trainers')
-	@UseGuards(JwtAuthGuard, RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN)
 	@ApiBearerAuth("JWT-auth")
 	@ApiOperation({ summary: '승인 대기 TRAINER 목록', description: 'ADMIN 승인을 기다리는 TRAINER 목록을 조회합니다. (ADMIN만)' })
@@ -199,7 +198,7 @@ export class AuthController {
 	 * 전체 TRAINER 목록 조회 (ADMIN만) - 승인됨, 대기중 모두 포함
 	 */
 	@Get('trainers')
-	@UseGuards(JwtAuthGuard, RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN)
 	@ApiBearerAuth("JWT-auth")
 	@ApiOperation({ summary: '전체 TRAINER 목록 조회', description: '모든 TRAINER 목록을 조회합니다. (승인됨, 대기중 모두 포함, ADMIN만)' })
@@ -222,7 +221,7 @@ export class AuthController {
 	 * TRAINER 승인 (ADMIN만)
 	 */
 	@Post('approve-trainer/:id')
-	@UseGuards(JwtAuthGuard, RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN)
 	@ApiBearerAuth("JWT-auth")
 	@ApiOperation({ summary: 'TRAINER 승인', description: '승인 대기 중인 TRAINER를 승인합니다. (ADMIN만)' })
@@ -244,7 +243,7 @@ export class AuthController {
 	 * TRAINER 승인 취소 (ADMIN만) - 이미 승인된 TRAINER를 다시 막기
 	 */
 	@Post('disapprove-trainer/:id')
-	@UseGuards(JwtAuthGuard, RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN)
 	@ApiBearerAuth("JWT-auth")
 	@ApiOperation({ summary: 'TRAINER 승인 취소', description: '이미 승인된 TRAINER의 승인을 취소합니다. (ADMIN만)' })
@@ -267,7 +266,7 @@ export class AuthController {
 	 * TRAINER 거부 (ADMIN만) - 승인된 TRAINER를 거부 (isApproved를 false로 변경)
 	 */
 	@Delete('reject-trainer/:id')
-	@UseGuards(JwtAuthGuard, RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN)
 	@ApiBearerAuth("JWT-auth")
 	@ApiOperation({ summary: 'TRAINER 거부', description: '승인된 TRAINER를 거부합니다. (isApproved를 false로 변경, 계정은 삭제하지 않음, ADMIN만)' })

@@ -6,7 +6,7 @@ import {
 	ApiParam,
 	ApiQuery,
 } from "@nestjs/swagger";
-import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { JwtAuthGuard } from "../../common/guards";
 import { AssessmentsService } from "../assessments/assessments.service";
 import { ApiResponseHelper } from "../../common/utils/api-response";
 import { CompareSnapshotsQueryDto } from "./dto/compare-snapshots-query.dto";

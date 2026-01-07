@@ -37,8 +37,7 @@ import { UpdatePTSessionDto } from './dto/update-pt-session.dto';
 import { CreateWorkoutRoutineDto } from './dto/create-workout-routine.dto';
 import { UpdateWorkoutRoutineDto } from './dto/update-workout-routine.dto';
 import { DashboardResponseDto } from './dto/dashboard-response.dto';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
+import { JwtAuthGuard, JwtRolesGuard } from '../../common/guards';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../../common/enums';
 import { ApiResponseHelper } from '../../common/utils/api-response';
@@ -56,7 +55,7 @@ export class MembersController {
   ) {}
 
   @Get()
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtRolesGuard)
   @Roles(Role.ADMIN, Role.TRAINER)
   async findAll() {
     const members = await this.membersService.findAll();
@@ -71,7 +70,7 @@ export class MembersController {
 
 	@Post()
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	async create(@Body() createMemberDto: CreateMemberDto) {
 		const member = await this.membersService.create(createMemberDto);
@@ -79,7 +78,7 @@ export class MembersController {
 	}
 
 	@Put(':id')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({ summary: '회원 정보 수정', description: '회원 정보를 수정합니다. (ADMIN, TRAINER 권한 필요)' })
 	@ApiResponse({ status: 200, description: '회원 정보 수정 성공' })
@@ -94,7 +93,7 @@ export class MembersController {
 	}
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtRolesGuard)
   @Roles(Role.ADMIN)
   async remove(@Param('id') id: string) {
     await this.membersService.remove(id);
@@ -110,7 +109,7 @@ export class MembersController {
 
 	@Post(":id/membership")
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	async createMembership(
 		@Param("id") id: string,
@@ -124,7 +123,7 @@ export class MembersController {
 	}
 
   @Put(':id/membership/:membershipId')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtRolesGuard)
   @Roles(Role.ADMIN, Role.TRAINER)
   async updateMembership(
     @Param('id') id: string,
@@ -147,7 +146,7 @@ export class MembersController {
   }
 
 	@Post(":id/pt-count")
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	async createOrUpdatePTUsage(
 		@Param("id") id: string,
@@ -161,7 +160,7 @@ export class MembersController {
 	}
 
 	@Put(":id/pt-count")
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	async updatePTUsage(
 		@Param("id") id: string,
@@ -175,7 +174,7 @@ export class MembersController {
 	}
 
 	@Delete(":id/membership/:membershipId")
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN)
 	async deleteMembership(
 		@Param("id") id: string,
@@ -204,7 +203,7 @@ export class MembersController {
 
 	@Post(':id/goals')
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '회원 목표 생성',
@@ -239,7 +238,7 @@ export class MembersController {
 	}
 
 	@Put(':id/goals')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '회원 목표 수정',
@@ -274,7 +273,7 @@ export class MembersController {
 	}
 
 	@Delete(':id/goals')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '회원 목표 삭제',
@@ -380,7 +379,7 @@ export class MembersController {
 
 	@Post(':id/workout-records')
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '운동 기록 생성',
@@ -396,7 +395,7 @@ export class MembersController {
 	}
 
 	@Put(':id/workout-records/:recordId')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '운동 기록 수정',
@@ -413,7 +412,7 @@ export class MembersController {
 	}
 
 	@Delete(':id/workout-records/:recordId')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '운동 기록 삭제',
@@ -456,7 +455,7 @@ export class MembersController {
 
 	@Post(':id/pt-sessions')
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: 'PT 세션 생성',
@@ -472,7 +471,7 @@ export class MembersController {
 	}
 
 	@Put(':id/pt-sessions/:sessionId')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: 'PT 세션 수정',
@@ -489,7 +488,7 @@ export class MembersController {
 	}
 
 	@Delete(':id/pt-sessions/:sessionId')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: 'PT 세션 삭제',
@@ -539,7 +538,7 @@ export class MembersController {
 
 	@Post(':id/workout-routines')
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '운동 루틴 생성',
@@ -555,7 +554,7 @@ export class MembersController {
 	}
 
 	@Put(':id/workout-routines/:routineId')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '운동 루틴 수정',
@@ -586,7 +585,7 @@ export class MembersController {
 	}
 
 	@Delete(':id/workout-routines/:routineId')
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({
 		summary: '운동 루틴 삭제',

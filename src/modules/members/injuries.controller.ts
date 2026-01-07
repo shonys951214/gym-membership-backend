@@ -20,8 +20,7 @@ import {
 } from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
-import { RolesGuard } from "../../common/guards/roles.guard";
+import { JwtAuthGuard, JwtRolesGuard } from "../../common/guards";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { Role } from "../../common/enums";
 import { InjuryHistory } from "../../entities/injury-history.entity";
@@ -81,7 +80,7 @@ export class InjuriesController {
 
 	@Post()
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({ summary: '부상 이력 등록', description: '새로운 부상 이력을 등록합니다. (ADMIN, TRAINER 권한 필요)' })
 	@ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
@@ -104,7 +103,7 @@ export class InjuriesController {
 	}
 
 	@Put(":id")
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({ summary: '부상 이력 수정', description: '기존 부상 이력을 수정합니다. (ADMIN, TRAINER 권한 필요)' })
 	@ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
@@ -137,7 +136,7 @@ export class InjuriesController {
 
 	@Post(":id/restrictions")
 	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(RolesGuard)
+	@UseGuards(JwtRolesGuard)
 	@Roles(Role.ADMIN, Role.TRAINER)
 	@ApiOperation({ summary: '평가 제한 설정', description: '부상에 대한 평가 제한을 설정합니다. (ADMIN, TRAINER 권한 필요)' })
 	@ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
