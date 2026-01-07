@@ -186,28 +186,58 @@ export class MembersService {
 
 	// 1차피드백: 목표 관리
 	async getGoal(memberId: string): Promise<{
+		id: string;
+		memberId: string;
 		goal?: string;
 		goalProgress: number;
 		goalTrainerComment?: string;
 		totalSessions: number;
 		completedSessions: number;
-		progressPercentage: number; // 수업 진행률 (completedSessions / totalSessions * 100)
+		createdAt: Date;
+		updatedAt: Date;
 	}> {
 		const member = await this.findOne(memberId);
 
-		const progressPercentage =
-			member.totalSessions > 0
-				? Math.round((member.completedSessions / member.totalSessions) * 100)
-				: 0;
+		// 목표가 없으면 404 에러
+		if (!member.goal && member.goalProgress === 0 && !member.goalTrainerComment) {
+			throw ApiExceptions.goalNotFound();
+		}
 
 		return {
+			id: member.id,
+			memberId: member.id,
 			goal: member.goal,
 			goalProgress: member.goalProgress,
 			goalTrainerComment: member.goalTrainerComment,
 			totalSessions: member.totalSessions,
 			completedSessions: member.completedSessions,
-			progressPercentage,
+			createdAt: member.createdAt,
+			updatedAt: member.updatedAt,
 		};
+	}
+
+	async createGoal(memberId: string, createGoalDto: CreateGoalDto): Promise<Member> {
+		const member = await this.findOne(memberId);
+
+		// 이미 목표가 있는지 확인 (goal 필드가 있거나 goalProgress가 0이 아닌 경우)
+		if (member.goal || member.goalProgress > 0 || member.goalTrainerComment) {
+			throw ApiExceptions.validationError('이미 목표가 존재합니다. 수정 API를 사용해주세요.');
+		}
+
+		// goalProgress 범위 검증
+		if (createGoalDto.goalProgress !== undefined) {
+			if (createGoalDto.goalProgress < 0 || createGoalDto.goalProgress > 100) {
+				throw ApiExceptions.validationError('목표 진행률은 0-100 사이의 값이어야 합니다.');
+			}
+		}
+
+		Object.assign(member, {
+			goal: createGoalDto.goal,
+			goalProgress: createGoalDto.goalProgress ?? 0,
+			goalTrainerComment: createGoalDto.goalTrainerComment,
+		});
+
+		return this.memberRepository.save(member);
 	}
 
 	async updateGoal(memberId: string, updateGoalDto: UpdateGoalDto): Promise<Member> {
@@ -241,6 +271,22 @@ export class MembersService {
 		Object.assign(member, updateGoalDto);
 
 		return this.memberRepository.save(member);
+	}
+
+	async deleteGoal(memberId: string): Promise<void> {
+		const member = await this.findOne(memberId);
+
+		// 목표가 없으면 404 에러
+		if (!member.goal && member.goalProgress === 0 && !member.goalTrainerComment) {
+			throw ApiExceptions.goalNotFound();
+		}
+
+		// 목표 필드 초기화
+		member.goal = null;
+		member.goalProgress = 0;
+		member.goalTrainerComment = null;
+
+		await this.memberRepository.save(member);
 	}
 
 	// 1차피드백: 대시보드 통합
