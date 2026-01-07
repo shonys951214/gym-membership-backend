@@ -158,8 +158,20 @@ export class AnalyticsService {
       ),
     };
 
+    // memberSnapshot 정규화 (null 값 처리)
+    const normalizedMemberSnapshot = {
+      ...memberSnapshot,
+      strengthScore: memberSnapshot.strengthScore ?? 0,
+      cardioScore: memberSnapshot.cardioScore ?? 0,
+      enduranceScore: memberSnapshot.enduranceScore ?? 0,
+      flexibilityScore: memberSnapshot.flexibilityScore ?? 0, // 1차피드백: 유연성 추가
+      bodyScore: memberSnapshot.bodyScore ?? 0,
+      stabilityScore: memberSnapshot.stabilityScore ?? 0,
+      totalScore: memberSnapshot.totalScore ?? 0,
+    };
+
     return {
-      member: memberSnapshot,
+      member: normalizedMemberSnapshot,
       average: {
         strengthScore: averages.strengthScore,
         cardioScore: averages.cardioScore,

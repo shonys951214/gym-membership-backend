@@ -43,8 +43,22 @@ export class MemberAnalyticsController {
 			totalScore: snapshot.totalScore ?? 0,
 		}));
 
-		// latest 정규화
-		const latest = normalizedSnapshots[0] || null;
+		// latest 정규화 (null일 경우 기본 스냅샷 객체 반환)
+		const latest = normalizedSnapshots[0] || {
+			id: '',
+			assessmentId: '',
+			memberId,
+			assessedAt: new Date(),
+			version: 'v1',
+			strengthScore: 0,
+			cardioScore: 0,
+			enduranceScore: 0,
+			flexibilityScore: 0,
+			bodyScore: 0,
+			stabilityScore: 0,
+			totalScore: 0,
+			createdAt: new Date(),
+		};
 
 		return ApiResponseHelper.success(
 			{
