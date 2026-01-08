@@ -18,6 +18,7 @@
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/common/data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/common/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/common/data-source.ts",
+    "migration:add-physical-info": "node -e \"require('dotenv').config(); const { execSync } = require('child_process'); const url = process.env.DATABASE_URL || `postgresql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME}`; execSync(`psql \\\"${url}\\\" -f database/migrations/add_member_physical_info.sql`, { stdio: 'inherit' });\"",
     "generate:entities": "node scripts/generate-entities.js"
   },
   "keywords": [
