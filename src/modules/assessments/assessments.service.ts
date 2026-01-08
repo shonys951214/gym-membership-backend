@@ -3,7 +3,7 @@ import {
 	Logger,
 } from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { Assessment } from '../../entities/assessment.entity';
 import { AssessmentItem } from '../../entities/assessment-item.entity';
 import { AssessmentType, Condition, Category, EvaluationType } from '../../common/enums';
@@ -83,10 +83,14 @@ export class AssessmentsService {
     memberId: string,
     createAssessmentDto: CreateAssessmentDto,
   ): Promise<Assessment> {
-    // 초기 평가 중복 체크
+    // 초기 평가 중복 체크 (soft delete된 평가는 제외)
     if (createAssessmentDto.assessmentType === AssessmentType.INITIAL) {
       const existingInitial = await this.assessmentRepository.findOne({
-        where: { memberId, isInitial: true },
+        where: { 
+          memberId, 
+          isInitial: true,
+          deletedAt: IsNull(), // soft delete된 평가는 제외
+        },
       });
 
 			if (existingInitial) {
