@@ -306,10 +306,23 @@ export class AssessmentsService {
 	/**
 	 * 능력치 헥사곤 데이터 (6개 지표)
 	 */
-	async getHexagonData(memberId: string): Promise<{
+	/**
+	 * 레이더 차트용 헥사곤 데이터 조회
+	 * @param memberId 회원 ID
+	 * @param includeInitial 초기 평가 포함 여부 (기본값: false)
+	 */
+	async getHexagonData(
+		memberId: string,
+		includeInitial: boolean = false,
+	): Promise<{
 		indicators: Array<{ name: string; score: number }>;
 		assessedAt: string;
 		version: string;
+		initial?: {
+			indicators: Array<{ name: string; score: number }>;
+			assessedAt: string;
+			version: string;
+		} | null;
 	}> {
 		const snapshot = await this.getLatestSnapshot(memberId);
 
@@ -318,18 +331,65 @@ export class AssessmentsService {
 			throw ApiExceptions.abilitySnapshotNotFound();
 		}
 
-		return {
+		const current = {
 			indicators: [
 				{ name: "하체 근력", score: snapshot.strengthScore ?? 0 },
 				{ name: "심폐 지구력", score: snapshot.cardioScore ?? 0 },
 				{ name: "근지구력", score: snapshot.enduranceScore ?? 0 },
-				{ name: "유연성", score: snapshot.flexibilityScore ?? 0 }, // 1차피드백: 유연성 추가
+				{ name: "유연성", score: snapshot.flexibilityScore ?? 0 },
 				{ name: "체성분 밸런스", score: snapshot.bodyScore ?? 0 },
 				{ name: "부상 안정성", score: snapshot.stabilityScore ?? 0 },
 			],
 			assessedAt: DateHelper.toKoreaTimeISOString(snapshot.assessedAt),
 			version: snapshot.version || "v1",
 		};
+
+		// 초기 평가 포함 요청 시
+		if (includeInitial) {
+			const initialSnapshot = await this.getInitialSnapshot(memberId);
+			const initial = initialSnapshot
+				? {
+						indicators: [
+							{ name: "하체 근력", score: initialSnapshot.strengthScore ?? 0 },
+							{ name: "심폐 지구력", score: initialSnapshot.cardioScore ?? 0 },
+							{ name: "근지구력", score: initialSnapshot.enduranceScore ?? 0 },
+							{ name: "유연성", score: initialSnapshot.flexibilityScore ?? 0 },
+							{ name: "체성분 밸런스", score: initialSnapshot.bodyScore ?? 0 },
+							{ name: "부상 안정성", score: initialSnapshot.stabilityScore ?? 0 },
+						],
+						assessedAt: DateHelper.toKoreaTimeISOString(initialSnapshot.assessedAt),
+						version: initialSnapshot.version || "v1",
+					}
+				: null;
+
+			return {
+				...current,
+				initial,
+			};
+		}
+
+		return current;
+	}
+
+	/**
+	 * 초기 평가 스냅샷 조회
+	 */
+	async getInitialSnapshot(memberId: string): Promise<AbilitySnapshot | null> {
+		const initialAssessment = await this.assessmentRepository.findOne({
+			where: {
+				memberId,
+				isInitial: true,
+				deletedAt: IsNull(),
+			},
+			relations: ['snapshot'],
+		});
+
+		if (!initialAssessment || !initialAssessment.snapshot) {
+			return null;
+		}
+
+		// null 값 정규화
+		return this.normalizeSnapshot(initialAssessment.snapshot);
 	}
 
 	/**

@@ -5,12 +5,14 @@ import {
 	ApiOperation,
 	ApiParam,
 	ApiQuery,
+	ApiResponse,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/guards";
 import { AssessmentsService } from "../assessments/assessments.service";
 import { ApiResponseHelper } from "../../common/utils/api-response";
 import { CompareSnapshotsQueryDto } from "./dto/compare-snapshots-query.dto";
 import { SnapshotNormalizer } from "../../common/utils/snapshot-normalizer";
+import { HexagonDataDto } from "./dto/hexagon-response.dto";
 
 @ApiTags("abilities")
 @ApiBearerAuth("JWT-auth")
@@ -61,10 +63,29 @@ export class AbilitiesController {
 	}
 
 	@Get("hexagon")
-	@ApiOperation({ summary: '능력치 헥사곤 데이터 조회', description: '레이더 차트용 헥사곤 데이터를 조회합니다.' })
+	@ApiOperation({ 
+		summary: '능력치 헥사곤 데이터 조회', 
+		description: '레이더 차트용 헥사곤 데이터를 조회합니다. compare=true 쿼리 파라미터를 추가하면 초기 평가와 비교 데이터를 포함합니다.' 
+	})
 	@ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
-	async getHexagon(@Param("memberId") memberId: string) {
-		const hexagon = await this.assessmentsService.getHexagonData(memberId);
+	@ApiQuery({ 
+		name: 'compare', 
+		description: '초기 평가와 비교 데이터 포함 여부', 
+		required: false, 
+		type: Boolean, 
+		example: false 
+	})
+	@ApiResponse({ 
+		status: 200, 
+		description: '능력치 헥사곤 조회 성공',
+		type: HexagonDataDto
+	})
+	async getHexagon(
+		@Param("memberId") memberId: string,
+		@Query("compare") compare?: string,
+	) {
+		const includeInitial = compare === 'true';
+		const hexagon = await this.assessmentsService.getHexagonData(memberId, includeInitial);
 		return ApiResponseHelper.success(hexagon, "능력치 헥사곤 조회 성공");
 	}
 

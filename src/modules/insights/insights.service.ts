@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, MoreThan } from "typeorm";
+import { Repository, MoreThan, In, IsNull } from "typeorm";
 import { AbilitySnapshot } from "../../entities/ability-snapshot.entity";
 import { Member } from "../../entities/member.entity";
 import { Assessment } from "../../entities/assessment.entity";
-import { MemberStatus } from "../../common/enums";
+import { InjuryHistory } from "../../entities/injury-history.entity";
+import { MemberStatus, RecoveryStatus } from "../../common/enums";
 import { DateHelper } from "../../common/utils/date-helper";
 import { SnapshotNormalizer } from "../../common/utils/snapshot-normalizer";
 import { AnalyticsHelper } from "../../common/utils/analytics-helper";
@@ -71,7 +72,9 @@ export class InsightsService {
 		@InjectRepository(Member)
 		private memberRepository: Repository<Member>,
 		@InjectRepository(Assessment)
-		private assessmentRepository: Repository<Assessment>
+		private assessmentRepository: Repository<Assessment>,
+		@InjectRepository(InjuryHistory)
+		private injuryHistoryRepository: Repository<InjuryHistory>
 	) {}
 
 	/**
@@ -269,17 +272,34 @@ export class InsightsService {
 				}
 			}
 
-			// 부상 이력 확인
-			const recentInjuries = await this.assessmentRepository
-				.createQueryBuilder("assessment")
-				.leftJoinAndSelect("assessment.member", "member")
-				.where("member.id = :memberId", { memberId: member.id })
-				.andWhere("assessment.deletedAt IS NULL")
-				.orderBy("assessment.assessedAt", "DESC")
-				.getMany();
+			// 부상 이력 확인 - 회복 중이거나 만성 부상이 있는 경우
+			const activeInjuries = await this.injuryHistoryRepository.find({
+				where: {
+					memberId: member.id,
+					recoveryStatus: In([RecoveryStatus.RECOVERING, RecoveryStatus.CHRONIC]),
+					deletedAt: IsNull(),
+				},
+			});
+
+			if (activeInjuries.length > 0) {
+				const injuryTypes = activeInjuries.map(injury => `${injury.bodyPart} ${injury.injuryType}`).join(", ");
+				riskMembers.push({
+					memberId: member.id,
+					memberName: member.name,
+					riskType: "INJURY",
+					description: `활성 부상이 있습니다: ${injuryTypes}`,
+				});
+			}
 
 			// 최근 평가가 없거나 오래된 경우
-			const lastAssessment = recentInjuries[0];
+			const lastAssessment = await this.assessmentRepository.findOne({
+				where: { 
+					memberId: member.id,
+					deletedAt: IsNull(),
+				},
+				order: { assessedAt: "DESC" },
+			});
+
 			if (!lastAssessment) {
 				riskMembers.push({
 					memberId: member.id,
@@ -288,7 +308,12 @@ export class InsightsService {
 					description: "최근 평가 기록이 없습니다.",
 				});
 			} else {
-				const daysSinceLastAssessment = (Date.now() - lastAssessment.assessedAt.getTime()) / (1000 * 60 * 60 * 24);
+				// assessedAt이 Date 객체인지 확인하고 변환
+				const assessedAtDate = lastAssessment.assessedAt instanceof Date 
+					? lastAssessment.assessedAt 
+					: new Date(lastAssessment.assessedAt);
+					
+				const daysSinceLastAssessment = (Date.now() - assessedAtDate.getTime()) / (1000 * 60 * 60 * 24);
 
 				if (daysSinceLastAssessment > 30) {
 					riskMembers.push({
