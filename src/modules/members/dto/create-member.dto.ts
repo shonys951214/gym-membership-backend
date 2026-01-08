@@ -1,6 +1,6 @@
-import { IsString, IsEmail, IsDateString, IsOptional, IsEnum, MaxLength } from "class-validator";
-import { ApiProperty } from "@nestjs/swagger";
-import { MemberStatus } from "../../../common/enums";
+import { IsString, IsEmail, IsDateString, IsOptional, IsEnum, MaxLength, IsNumber, Min, Max } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { MemberStatus, Gender } from "../../../common/enums";
 import { IsPhoneNumber } from "../../../common/decorators/is-phone-number.decorator";
 
 export class CreateMemberDto {
@@ -48,4 +48,37 @@ export class CreateMemberDto {
 	@IsOptional()
 	@IsEnum(MemberStatus, { message: "올바른 상태가 아닙니다." })
 	status?: MemberStatus;
+
+	@ApiPropertyOptional({
+		description: "키 (cm)",
+		example: 175.5,
+		minimum: 50,
+		maximum: 250,
+	})
+	@IsOptional()
+	@IsNumber({}, { message: "키는 숫자여야 합니다." })
+	@Min(50, { message: "키는 50cm 이상이어야 합니다." })
+	@Max(250, { message: "키는 250cm 이하여야 합니다." })
+	height?: number;
+
+	@ApiPropertyOptional({
+		description: "몸무게 (kg)",
+		example: 70.5,
+		minimum: 20,
+		maximum: 300,
+	})
+	@IsOptional()
+	@IsNumber({}, { message: "몸무게는 숫자여야 합니다." })
+	@Min(20, { message: "몸무게는 20kg 이상이어야 합니다." })
+	@Max(300, { message: "몸무게는 300kg 이하여야 합니다." })
+	weight?: number;
+
+	@ApiPropertyOptional({
+		description: "성별",
+		enum: Gender,
+		example: Gender.MALE,
+	})
+	@IsOptional()
+	@IsEnum(Gender, { message: "올바른 성별이 아닙니다. (MALE 또는 FEMALE)" })
+	gender?: Gender;
 }

@@ -16,7 +16,7 @@ import { AbilitySnapshot } from './ability-snapshot.entity';
 import { WorkoutRecord } from './workout-record.entity';
 import { PTSession } from './pt-session.entity';
 import { WorkoutRoutine } from './workout-routine.entity';
-import { MemberStatus } from '../common/enums';
+import { MemberStatus, Gender } from '../common/enums';
 
 @Index('idx_members_email', ['email'])
 @Index('idx_members_status', ['status'])
@@ -44,6 +44,22 @@ export class Member {
     default: MemberStatus.ACTIVE,
   })
   status: MemberStatus;
+
+  // 신체 정보
+  @Column({ type: 'float', name: 'height', nullable: true, comment: '키 (cm)' })
+  height?: number;
+
+  @Column({ type: 'float', name: 'weight', nullable: true, comment: '몸무게 (kg)' })
+  weight?: number;
+
+  @Column({
+    type: 'enum',
+    enum: Gender,
+    name: 'gender',
+    nullable: true,
+    comment: '성별',
+  })
+  gender?: Gender;
 
   // 1차피드백: 목표 관리 필드
   @Column({ type: 'text', nullable: true })
