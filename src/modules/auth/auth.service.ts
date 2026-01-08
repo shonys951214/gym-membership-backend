@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ApiResponseHelper } from '../../common/utils/api-response';
 import { ApiExceptions } from '../../common/exceptions';
+import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 
 @Injectable()
 export class AuthService {
@@ -306,7 +307,7 @@ export class AuthService {
 		}
 
 		// 정보 업데이트
-		Object.assign(user, {
+		EntityUpdateHelper.updateFields(user, {
 			...(updateUserDto.name && { name: updateUserDto.name }),
 			...(updateUserDto.email && { email: updateUserDto.email }),
 			...(updateUserDto.password && { password: updateUserDto.password }),

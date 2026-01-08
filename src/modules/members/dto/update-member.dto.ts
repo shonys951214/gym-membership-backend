@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsEnum, MaxLength, IsNumber, Min, Max } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsEnum, MaxLength, IsNumber, Min, Max, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { MemberStatus, Gender } from '../../../common/enums';
 import { IsPhoneNumber } from '../../../common/decorators/is-phone-number.decorator';
@@ -67,6 +67,14 @@ export class UpdateMemberDto {
 	@Min(20, { message: '몸무게는 20kg 이상이어야 합니다.' })
 	@Max(300, { message: '몸무게는 300kg 이하여야 합니다.' })
 	weight?: number;
+
+	@ApiPropertyOptional({
+		description: '생년월일 (YYYY-MM-DD 형식)',
+		example: '1990-01-15',
+	})
+	@IsOptional()
+	@IsDateString({}, { message: '올바른 날짜 형식이 아닙니다. (YYYY-MM-DD)' })
+	birthDate?: string;
 
 	@ApiPropertyOptional({
 		description: '성별',

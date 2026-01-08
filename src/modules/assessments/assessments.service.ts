@@ -16,6 +16,7 @@ import { ApiExceptions } from '../../common/exceptions';
 import { DateHelper } from '../../common/utils/date-helper';
 import { SnapshotNormalizer } from '../../common/utils/snapshot-normalizer';
 import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
+import { RepositoryHelper } from '../../common/utils/repository-helper';
 
 @Injectable()
 export class AssessmentsService {
@@ -43,20 +44,27 @@ export class AssessmentsService {
   }
 
   async findOne(id: string, memberId: string): Promise<Assessment> {
-    const assessment = await this.assessmentRepository.findOne({
+    const assessment = await RepositoryHelper.findOneOrFailByMemberId(
+      this.assessmentRepository,
+      id,
+      memberId,
+      this.logger,
+      '평가',
+    );
+
+    // relations 로드
+    const assessmentWithRelations = await this.assessmentRepository.findOne({
       where: { id, memberId },
       relations: ['items', 'snapshot'],
     });
 
-		if (!assessment) {
-			this.logger.warn(
-				`평가를 찾을 수 없습니다. AssessmentId: ${id}, MemberId: ${memberId}`,
-			);
-			throw ApiExceptions.assessmentNotFound();
-		}
+    if (!assessmentWithRelations) {
+      // 이미 findOneOrFailByMemberId에서 에러를 던졌지만, relations가 필요한 경우를 대비
+      return assessment as Assessment;
+    }
 
     // null 값 정규화 (프론트엔드 toFixed 오류 방지)
-    return this.normalizeAssessment(assessment);
+    return this.normalizeAssessment(assessmentWithRelations);
   }
 
   /**
@@ -103,19 +111,28 @@ export class AssessmentsService {
 			}
     }
 
+    // 날짜 필드 변환
+    const assessmentData = EntityUpdateHelper.convertDateFields(
+      {
+        memberId,
+        assessmentType: createAssessmentDto.assessmentType,
+        evaluationType: createAssessmentDto.evaluationType,
+        staticEvaluation: createAssessmentDto.staticEvaluation,
+        dynamicEvaluation: createAssessmentDto.dynamicEvaluation,
+        isInitial: createAssessmentDto.assessmentType === AssessmentType.INITIAL,
+        assessedAt: createAssessmentDto.assessedAt,
+        trainerComment: createAssessmentDto.trainerComment,
+        bodyWeight: createAssessmentDto.bodyWeight,
+        condition: createAssessmentDto.condition,
+      },
+      ['assessedAt'],
+    );
+
+    // 날짜 필드 변환 (DTO의 string을 Entity의 Date로)
+    const convertedAssessmentData = EntityUpdateHelper.convertDateFields(assessmentData, ['assessedAt']);
+
     // 평가 생성
-    const assessment = this.assessmentRepository.create({
-      memberId,
-      assessmentType: createAssessmentDto.assessmentType,
-      evaluationType: createAssessmentDto.evaluationType,
-      staticEvaluation: createAssessmentDto.staticEvaluation,
-      dynamicEvaluation: createAssessmentDto.dynamicEvaluation,
-      isInitial: createAssessmentDto.assessmentType === AssessmentType.INITIAL,
-      assessedAt: new Date(createAssessmentDto.assessedAt),
-      trainerComment: createAssessmentDto.trainerComment,
-      bodyWeight: createAssessmentDto.bodyWeight,
-      condition: createAssessmentDto.condition,
-    });
+    const assessment = this.assessmentRepository.create(assessmentData);
 
     const savedAssessment = await this.assessmentRepository.save(assessment);
 
@@ -133,6 +150,7 @@ export class AssessmentsService {
           value: itemDto.value,
           unit: itemDto.unit,
           score,
+          details: itemDto.details, // 등급, 관찰 포인트 등 상세 정보
         });
 
         return this.assessmentItemRepository.save(assessmentItem);
@@ -185,6 +203,7 @@ export class AssessmentsService {
             value: itemDto.value,
             unit: itemDto.unit,
             score,
+            details: itemDto.details, // 등급, 관찰 포인트 등 상세 정보
           });
 
           return this.assessmentItemRepository.save(assessmentItem);

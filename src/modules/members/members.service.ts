@@ -16,6 +16,9 @@ import { UpdateGoalDto } from './dto/update-goal.dto';
 import { CreateGoalDto } from './dto/create-goal.dto';
 import { WorkoutVolumeQueryDto, VolumePeriod } from './dto/workout-volume-query.dto';
 import { ApiExceptions } from '../../common/exceptions';
+import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
+import { RepositoryHelper } from '../../common/utils/repository-helper';
+import { MemberHelper } from '../../common/utils/member-helper';
 
 @Injectable()
 export class MembersService {
@@ -42,15 +45,23 @@ export class MembersService {
   }
 
   async findOne(id: string): Promise<Member> {
-    const member = await this.memberRepository.findOne({
-      where: { id },
-      relations: ['memberships', 'ptUsages', 'assessments', 'injuries'],
-    });
+    const member = await RepositoryHelper.findOneOrFail(
+      this.memberRepository,
+      {
+        where: { id },
+        relations: ['memberships', 'ptUsages', 'assessments', 'injuries'],
+      },
+      this.logger,
+      '회원',
+    );
 
-		if (!member) {
-			this.logger.warn(`회원을 찾을 수 없습니다. ID: ${id}`);
-			throw ApiExceptions.memberNotFound();
-		}
+    // DB에 저장된 age를 그대로 사용 (create/update 시 이미 계산되어 저장됨)
+    // 기존 데이터 대비: birthDate가 있는데 age가 null인 경우에만 재계산
+    if (member.birthDate && (!member.age || member.age === null)) {
+      member.age = MemberHelper.calculateAge(member.birthDate);
+      // DB에도 저장 (다음 조회 시 재계산 불필요)
+      await this.memberRepository.save(member);
+    }
 
     return member;
   }
@@ -67,9 +78,15 @@ export class MembersService {
 			throw ApiExceptions.memberAlreadyExists();
 		}
 
+    // 생년월일이 있으면 한국나이 자동 계산하여 DB에 저장
+    const birthDate = createMemberDto.birthDate ? new Date(createMemberDto.birthDate) : undefined;
+    const age = MemberHelper.calculateAge(birthDate);
+
     const member = this.memberRepository.create({
       ...createMemberDto,
       joinDate: new Date(createMemberDto.joinDate),
+      birthDate,
+      age, // DB에 저장
       status: createMemberDto.status || MemberStatus.ACTIVE,
     });
 
@@ -77,9 +94,32 @@ export class MembersService {
   }
 
   async update(id: string, updateMemberDto: UpdateMemberDto): Promise<Member> {
-    const member = await this.findOne(id);
+    const member = await this.memberRepository.findOne({
+      where: { id },
+      relations: ['memberships', 'ptUsages', 'assessments', 'injuries'],
+    });
 
-    Object.assign(member, updateMemberDto);
+    if (!member) {
+      this.logger.warn(`회원을 찾을 수 없습니다. ID: ${id}`);
+      throw ApiExceptions.memberNotFound();
+    }
+
+    // EntityUpdateHelper를 사용하여 날짜 필드 변환 및 업데이트
+    EntityUpdateHelper.updateFieldsWithDateConversion(member, updateMemberDto, ['birthDate', 'joinDate']);
+
+    // birthDate가 업데이트된 경우 나이 재계산하여 DB에 저장
+    if (updateMemberDto.birthDate !== undefined) {
+      // birthDate 필드가 업데이트되었으므로 나이 재계산
+      member.age = MemberHelper.recalculateAge(
+        member.birthDate,
+        updateMemberDto.birthDate,
+      );
+      
+      // 명시적으로 null로 설정된 경우 birthDate도 null로 설정
+      if (updateMemberDto.birthDate === null) {
+        member.birthDate = undefined;
+      }
+    }
 
     return this.memberRepository.save(member);
   }
@@ -103,13 +143,13 @@ export class MembersService {
   ): Promise<Membership> {
     await this.findOne(memberId); // 회원 존재 확인
 
-    const membership = this.membershipRepository.create({
-      memberId,
-      ...createMembershipDto,
-      purchaseDate: new Date(createMembershipDto.purchaseDate),
-      expiryDate: new Date(createMembershipDto.expiryDate),
-    });
+    // 날짜 필드 변환
+    const membershipData = EntityUpdateHelper.convertDateFields(
+      { ...createMembershipDto, memberId },
+      ['purchaseDate', 'expiryDate'],
+    );
 
+    const membership = this.membershipRepository.create(membershipData);
     return this.membershipRepository.save(membership);
   }
 
@@ -129,13 +169,8 @@ export class MembersService {
 			throw ApiExceptions.membershipNotFound();
 		}
 
-    Object.assign(membership, updateData);
-    if (updateData.purchaseDate) {
-      membership.purchaseDate = new Date(updateData.purchaseDate);
-    }
-    if (updateData.expiryDate) {
-      membership.expiryDate = new Date(updateData.expiryDate);
-    }
+    // EntityUpdateHelper를 사용하여 날짜 필드 변환 및 업데이트
+    EntityUpdateHelper.updateFieldsWithDateConversion(membership, updateData, ['purchaseDate', 'expiryDate']);
 
     return this.membershipRepository.save(membership);
   }
@@ -164,7 +199,7 @@ export class MembersService {
         usedCount: updatePTUsageDto.usedCount || 0,
       });
     } else {
-      Object.assign(ptUsage, updatePTUsageDto);
+      EntityUpdateHelper.updateFields(ptUsage, updatePTUsageDto);
       if (updatePTUsageDto.usedCount !== undefined) {
         ptUsage.lastUsedDate = new Date();
       }
@@ -235,7 +270,7 @@ export class MembersService {
 			}
 		}
 
-		Object.assign(member, {
+		EntityUpdateHelper.updateFields(member, {
 			goal: createGoalDto.goal,
 			goalProgress: createGoalDto.goalProgress ?? 0,
 			goalTrainerComment: createGoalDto.goalTrainerComment,
@@ -272,7 +307,7 @@ export class MembersService {
 			}
 		}
 
-		Object.assign(member, updateGoalDto);
+		EntityUpdateHelper.updateFields(member, updateGoalDto);
 
 		return this.memberRepository.save(member);
 	}

@@ -7,6 +7,7 @@ import { CreatePTSessionDto } from './dto/create-pt-session.dto';
 import { UpdatePTSessionDto } from './dto/update-pt-session.dto';
 import { ApiExceptions } from '../../common/exceptions';
 import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
+import { RepositoryHelper } from '../../common/utils/repository-helper';
 
 @Injectable()
 export class PTSessionsService {
@@ -25,9 +26,8 @@ export class PTSessionsService {
 		totalSessions: number;
 		completedSessions: number;
 	}> {
-		const member = await this.memberRepository.findOneOrFail({
-			where: { id: memberId },
-		});
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+		const member = await this.memberRepository.findOne({ where: { id: memberId } });
 
 		const sessions = await this.ptSessionRepository.find({
 			where: { memberId },
@@ -43,18 +43,13 @@ export class PTSessionsService {
 	}
 
 	async findOne(id: string, memberId: string): Promise<PTSession> {
-		const session = await this.ptSessionRepository.findOne({
-			where: { id, memberId },
-		});
-
-		if (!session) {
-			this.logger.warn(
-				`PT 세션을 찾을 수 없습니다. ID: ${id}, MemberId: ${memberId}`,
-			);
-			throw ApiExceptions.memberNotFound('PT 세션을 찾을 수 없습니다.');
-		}
-
-		return session;
+		return RepositoryHelper.findOneOrFailByMemberId(
+			this.ptSessionRepository,
+			id,
+			memberId,
+			this.logger,
+			'PT 세션',
+		);
 	}
 
 	/**
@@ -73,21 +68,25 @@ export class PTSessionsService {
 		memberId: string,
 		createDto: CreatePTSessionDto,
 	): Promise<PTSession> {
-		const member = await this.memberRepository.findOneOrFail({
-			where: { id: memberId },
-		});
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+		const member = await this.memberRepository.findOne({ where: { id: memberId } });
 
 		// 다음 세션 번호 계산
 		const sessionNumber = await this.getNextSessionNumber(memberId);
 
-		const session = this.ptSessionRepository.create({
-			memberId,
-			sessionNumber,
-			sessionDate: new Date(createDto.sessionDate),
-			mainContent: createDto.mainContent,
-			trainerComment: createDto.trainerComment,
-		});
+		// 날짜 필드 변환
+		const sessionData = EntityUpdateHelper.convertDateFields(
+			{
+				memberId,
+				sessionNumber,
+				mainContent: createDto.mainContent,
+				trainerComment: createDto.trainerComment,
+				sessionDate: createDto.sessionDate,
+			},
+			['sessionDate'],
+		);
 
+		const session = this.ptSessionRepository.create(sessionData);
 		const savedSession = await this.ptSessionRepository.save(session);
 
 		// completedSessions 자동 증가
@@ -120,9 +119,8 @@ export class PTSessionsService {
 	}
 
 	async remove(id: string, memberId: string): Promise<void> {
-		const member = await this.memberRepository.findOneOrFail({
-			where: { id: memberId },
-		});
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+		const member = await this.memberRepository.findOne({ where: { id: memberId } });
 
 		const session = await this.findOne(id, memberId);
 		await this.ptSessionRepository.remove(session);

@@ -9,6 +9,7 @@ import { ApiExceptions } from '../../common/exceptions';
 import { QueryBuilderHelper } from '../../common/utils/query-builder-helper';
 import { DateRangeHelper } from '../../common/utils/date-range-helper';
 import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
+import { RepositoryHelper } from '../../common/utils/repository-helper';
 
 @Injectable()
 export class WorkoutRoutinesService {
@@ -37,7 +38,7 @@ export class WorkoutRoutinesService {
 		isCompleted?: boolean,
 	): Promise<WorkoutRoutine[]> {
 		if (memberId) {
-			await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+			await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
 		}
 
 		const queryBuilder = this.workoutRoutineRepository.createQueryBuilder('routine');
@@ -61,7 +62,7 @@ export class WorkoutRoutinesService {
 	async findToday(memberId?: string): Promise<WorkoutRoutine | null> {
 		// 회원별 루틴 우선 조회
 		if (memberId) {
-			await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+			await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
 
 			const today = new Date();
 			today.setHours(0, 0, 0, 0);
@@ -93,24 +94,19 @@ export class WorkoutRoutinesService {
 
 	async findOne(id: string, memberId?: string): Promise<WorkoutRoutine> {
 		const where: any = { id };
-		if (memberId) {
+		if (memberId !== undefined) {
 			where.memberId = memberId;
 		} else {
 			where.memberId = null;
 		}
 
-		const routine = await this.workoutRoutineRepository.findOne({
-			where,
-		});
-
-		if (!routine) {
-			this.logger.warn(
-				`운동 루틴을 찾을 수 없습니다. ID: ${id}, MemberId: ${memberId || 'null'}`,
-			);
-			throw ApiExceptions.routineNotFound();
-		}
-
-		return routine;
+		return RepositoryHelper.findOneOrFail(
+			this.workoutRoutineRepository,
+			{ where },
+			this.logger,
+			'운동 루틴',
+			`운동 루틴을 찾을 수 없습니다. ID: ${id}, MemberId: ${memberId || 'null'}`,
+		);
 	}
 
 	async create(
@@ -118,19 +114,24 @@ export class WorkoutRoutinesService {
 		createDto: CreateWorkoutRoutineDto,
 	): Promise<WorkoutRoutine> {
 		if (memberId) {
-			await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+			await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
 		}
 
-		const routine = this.workoutRoutineRepository.create({
-			memberId: memberId || null,
-			routineName: createDto.routineName,
-			routineDate: createDto.routineDate ? new Date(createDto.routineDate) : null,
-			exercises: createDto.exercises,
-			estimatedDuration: createDto.estimatedDuration,
-			difficulty: createDto.difficulty,
-			isCompleted: false,
-		});
+		// 날짜 필드 변환
+		const routineData = EntityUpdateHelper.convertDateFields(
+			{
+				memberId: memberId || null,
+				routineName: createDto.routineName,
+				routineDate: createDto.routineDate || null,
+				exercises: createDto.exercises,
+				estimatedDuration: createDto.estimatedDuration,
+				difficulty: createDto.difficulty,
+				isCompleted: false,
+			},
+			['routineDate'],
+		);
 
+		const routine = this.workoutRoutineRepository.create(routineData);
 		return this.workoutRoutineRepository.save(routine);
 	}
 

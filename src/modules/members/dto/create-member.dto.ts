@@ -74,6 +74,14 @@ export class CreateMemberDto {
 	weight?: number;
 
 	@ApiPropertyOptional({
+		description: "생년월일 (YYYY-MM-DD 형식)",
+		example: "1990-01-15",
+	})
+	@IsOptional()
+	@IsDateString({}, { message: "올바른 날짜 형식이 아닙니다. (YYYY-MM-DD)" })
+	birthDate?: string;
+
+	@ApiPropertyOptional({
 		description: "성별",
 		enum: Gender,
 		example: Gender.MALE,

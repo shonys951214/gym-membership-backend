@@ -15,4 +15,5 @@ export * from './workout-helper';
 export * from './pt-usage-helper';
 export * from './query-builder-helper';
 export * from './entity-update-helper';
+export * from './member-helper';
 

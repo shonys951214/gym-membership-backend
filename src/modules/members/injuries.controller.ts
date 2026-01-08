@@ -30,6 +30,7 @@ import { UpdateInjuryDto } from "./dto/update-injury.dto";
 import { CreateInjuryRestrictionDto } from "./dto/create-injury-restriction.dto";
 import { ApiResponseHelper } from "../../common/utils/api-response";
 import { ApiExceptions } from "../../common/exceptions";
+import { EntityUpdateHelper } from "../../common/utils/entity-update-helper";
 
 @ApiTags("injuries")
 @ApiBearerAuth("JWT-auth")
@@ -92,11 +93,17 @@ export class InjuriesController {
 		@Param("memberId") memberId: string,
 		@Body() createInjuryDto: CreateInjuryDto,
 	) {
-		const injury = this.injuryRepository.create({
-			memberId,
-			...createInjuryDto,
-			date: new Date(createInjuryDto.date),
-		});
+		// 날짜 필드 변환
+		const injuryData = EntityUpdateHelper.convertDateFields(
+			{
+				memberId,
+				...createInjuryDto,
+				date: createInjuryDto.date,
+			},
+			['date'],
+		);
+
+		const injury = this.injuryRepository.create(injuryData);
 
 		const savedInjury = await this.injuryRepository.save(injury);
 		return ApiResponseHelper.success(savedInjury, "부상 이력 등록 성공");
@@ -125,10 +132,7 @@ export class InjuriesController {
 			throw ApiExceptions.injuryNotFound();
 		}
 
-		Object.assign(injury, updateData);
-		if (updateData.date) {
-			injury.date = new Date(updateData.date);
-		}
+		EntityUpdateHelper.updateFieldsWithDateConversion(injury, updateData, ['date']);
 
 		const savedInjury = await this.injuryRepository.save(injury);
 		return ApiResponseHelper.success(savedInjury, "부상 이력 수정 성공");

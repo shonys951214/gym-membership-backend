@@ -15,6 +15,7 @@ import { PTUsageHelper } from '../../common/utils/pt-usage-helper';
 import { QueryBuilderHelper } from '../../common/utils/query-builder-helper';
 import { DateRangeHelper } from '../../common/utils/date-range-helper';
 import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
+import { RepositoryHelper } from '../../common/utils/repository-helper';
 
 @Injectable()
 export class WorkoutRecordsService {
@@ -40,7 +41,7 @@ export class WorkoutRecordsService {
 		startDate?: string,
 		endDate?: string,
 	): Promise<{ records: WorkoutRecord[]; total: number }> {
-		await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
 
 		const queryBuilder = this.workoutRecordRepository
 			.createQueryBuilder('record');
@@ -58,25 +59,20 @@ export class WorkoutRecordsService {
 	}
 
 	async findOne(id: string, memberId: string): Promise<WorkoutRecord> {
-		const record = await this.workoutRecordRepository.findOne({
-			where: { id, memberId },
-		});
-
-		if (!record) {
-			this.logger.warn(
-				`운동 기록을 찾을 수 없습니다. ID: ${id}, MemberId: ${memberId}`,
-			);
-			throw ApiExceptions.memberNotFound('운동 기록을 찾을 수 없습니다.');
-		}
-
-		return record;
+		return RepositoryHelper.findOneOrFailByMemberId(
+			this.workoutRecordRepository,
+			id,
+			memberId,
+			this.logger,
+			'운동 기록',
+		);
 	}
 
 	async create(
 		memberId: string,
 		createDto: CreateWorkoutRecordDto,
 	): Promise<WorkoutRecord> {
-		await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
 
 		// workoutType 기본값 처리
 		const workoutType = createDto.workoutType ?? WorkoutType.PERSONAL;
@@ -127,20 +123,26 @@ export class WorkoutRecordsService {
 			}
 		}
 
-		const record = this.workoutRecordRepository.create({
-			memberId,
-			workoutDate: new Date(createDto.workoutDate),
-			bodyPart: createDto.bodyPart,
-			exerciseName: createDto.exerciseName,
-			weight,
-			reps,
-			sets,
-			volume,
-			duration: createDto.duration,
-			workoutType,
-			ptSessionId,
-			trainerComment: createDto.trainerComment,
-		});
+		// 날짜 필드 변환
+		const recordData = EntityUpdateHelper.convertDateFields(
+			{
+				memberId,
+				workoutDate: createDto.workoutDate,
+				bodyPart: createDto.bodyPart,
+				exerciseName: createDto.exerciseName,
+				weight,
+				reps,
+				sets,
+				volume,
+				duration: createDto.duration,
+				workoutType,
+				ptSessionId,
+				trainerComment: createDto.trainerComment,
+			},
+			['workoutDate'],
+		);
+
+		const record = this.workoutRecordRepository.create(recordData);
 
 		return this.workoutRecordRepository.save(record);
 	}
@@ -191,7 +193,7 @@ export class WorkoutRecordsService {
 		bodyPartVolumes: Array<{ bodyPart: string; volume: number }>;
 		totalVolume: number;
 	}> {
-		await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
 
 		const period = query.period || VolumePeriod.WEEK;
 		const now = new Date();
@@ -277,7 +279,7 @@ export class WorkoutRecordsService {
 			}>;
 		};
 	}> {
-		await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
 
 		const result: any = {};
 
@@ -394,7 +396,7 @@ export class WorkoutRecordsService {
 		startDate: string;
 		endDate: string;
 	}> {
-		await this.memberRepository.findOneOrFail({ where: { id: memberId } });
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
 
 		// PT 세션 조회
 		const ptSessions = await this.memberRepository.manager.query(

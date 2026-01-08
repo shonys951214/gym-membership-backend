@@ -30,5 +30,33 @@ export class DateHelper {
 		const now = new Date();
 		return new Date(now.getTime() + 9 * 60 * 60 * 1000);
 	}
+
+	/**
+	 * 생년월일로부터 한국나이 계산
+	 * 한국나이: 태어난 해를 1살로 계산하고, 현재 연도에서 출생 연도를 뺀 값에 1을 더함
+	 * @param birthDate 생년월일 (Date 객체 또는 문자열)
+	 * @returns 한국나이 (생년월일이 없으면 null)
+	 * @example
+	 * // 2000년 1월 1일생이 2024년 기준
+	 * calculateKoreanAge(new Date('2000-01-01')) // 25 (2024 - 2000 + 1)
+	 */
+	static calculateKoreanAge(birthDate: Date | string | null | undefined): number | null {
+		if (!birthDate) {
+			return null;
+		}
+
+		const birth = typeof birthDate === 'string' ? new Date(birthDate) : birthDate;
+		
+		if (isNaN(birth.getTime())) {
+			return null;
+		}
+
+		const now = new Date();
+		const currentYear = now.getFullYear();
+		const birthYear = birth.getFullYear();
+		
+		// 한국나이: 현재 연도 - 출생 연도 + 1
+		return currentYear - birthYear + 1;
+	}
 }
 

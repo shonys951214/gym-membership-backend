@@ -53,6 +53,22 @@ export class Member {
   weight?: number;
 
   @Column({
+    type: 'date',
+    name: 'birth_date',
+    nullable: true,
+    comment: '생년월일',
+  })
+  birthDate?: Date;
+
+  @Column({
+    type: 'int',
+    name: 'age',
+    nullable: true,
+    comment: '한국나이 (생년월일로부터 자동 계산)',
+  })
+  age?: number;
+
+  @Column({
     type: 'enum',
     enum: Gender,
     name: 'gender',
