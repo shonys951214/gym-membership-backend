@@ -6,18 +6,23 @@ import { ErrorCode } from '../utils/error-codes';
  * 에러 코드를 포함하여 HttpExceptionFilter에서 자동으로 처리
  */
 export class ApiException extends HttpException {
+	public readonly details?: any;
+
 	constructor(
 		public readonly errorCode: ErrorCode,
 		message: string,
 		statusCode: HttpStatus = HttpStatus.BAD_REQUEST,
+		details?: any,
 	) {
 		super(
 			{
 				errorCode,
 				message,
+				...(details && { details }),
 			},
 			statusCode,
 		);
+		this.details = details;
 	}
 }
 
@@ -63,8 +68,14 @@ export class ApiExceptions {
 
 	static initialAssessmentAlreadyExists(
 		message: string = '초기 평가는 이미 존재합니다.',
+		existingAssessment?: { id: string; assessedAt: Date | string; assessmentType: string },
 	): ApiException {
-		return new ApiException('INITIAL_ASSESSMENT_ALREADY_EXISTS', message, HttpStatus.BAD_REQUEST);
+		return new ApiException(
+			'INITIAL_ASSESSMENT_ALREADY_EXISTS',
+			message,
+			HttpStatus.BAD_REQUEST,
+			existingAssessment ? { existingInitialAssessment: existingAssessment } : undefined,
+		);
 	}
 
 	// 부상 관련

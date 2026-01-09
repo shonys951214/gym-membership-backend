@@ -39,9 +39,34 @@ export class AssessmentsController {
   @ApiResponse({ status: 200, description: '평가 목록 조회 성공' })
   async findAll(@Param('memberId') memberId: string) {
     const assessments = await this.assessmentsService.findAll(memberId);
+    const hasInitialAssessment = await this.assessmentsService.hasInitialAssessment(memberId);
     return ApiResponseHelper.success({
       assessments,
       total: assessments.length,
+      hasInitialAssessment, // 초기 평가 존재 여부
+    });
+  }
+
+  @Get('check-initial')
+  @ApiOperation({ 
+    summary: '초기 평가 존재 여부 확인', 
+    description: '회원의 초기 평가 존재 여부를 확인합니다. 프론트엔드에서 평가 생성 전에 호출하여 평가 타입을 결정할 수 있습니다.' 
+  })
+  @ApiParam({ name: 'memberId', description: '회원 ID (UUID)', type: 'string' })
+  @ApiResponse({ status: 200, description: '초기 평가 존재 여부 확인 성공' })
+  async checkInitialAssessment(@Param('memberId') memberId: string) {
+    const hasInitial = await this.assessmentsService.hasInitialAssessment(memberId);
+    const initialAssessment = hasInitial 
+      ? await this.assessmentsService.getInitialAssessment(memberId)
+      : null;
+    
+    return ApiResponseHelper.success({
+      hasInitialAssessment: hasInitial,
+      initialAssessment: initialAssessment ? {
+        id: initialAssessment.id,
+        assessedAt: initialAssessment.assessedAt,
+        assessmentType: initialAssessment.assessmentType,
+      } : null,
     });
   }
 

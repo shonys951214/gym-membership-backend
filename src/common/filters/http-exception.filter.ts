@@ -21,9 +21,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
 		// ApiException인 경우 (에러 코드 포함)
 		if (exception instanceof ApiException) {
 			status = exception.getStatus();
-			const exceptionResponse = exception.getResponse() as { errorCode: ErrorCode; message: string };
+			const exceptionResponse = exception.getResponse() as { errorCode: ErrorCode; message: string; details?: any };
 			errorCode = exceptionResponse.errorCode;
 			message = exceptionResponse.message;
+			// details가 있으면 에러 응답에 포함
+			if (exceptionResponse.details) {
+				// details를 에러 응답에 포함하도록 처리
+				(exceptionResponse as any).details = exceptionResponse.details;
+			}
 		} else if (exception instanceof HttpException) {
 			status = exception.getStatus();
 			const exceptionResponse = exception.getResponse();
@@ -101,12 +106,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
 		this.logger.error(`${request.method} ${request.url} - ${status} - ${message}`, JSON.stringify(errorContext, null, 2), exception instanceof Error ? exception.stack : undefined);
 
 		// 에러 응답 반환
+		const errorDetails: any = {
+			path: request.url,
+			method: request.method,
+			timestamp: DateHelper.getKoreaTimeISOString(),
+		};
+
+		// ApiException의 details가 있으면 포함
+		if (exception instanceof ApiException && exception.details) {
+			Object.assign(errorDetails, exception.details);
+		}
+
 		response.status(status).json(
-			ApiResponseHelper.error(errorCode, message, {
-				path: request.url,
-				method: request.method,
-				timestamp: DateHelper.getKoreaTimeISOString(),
-			})
+			ApiResponseHelper.error(errorCode, message, errorDetails)
 		);
 	}
 }

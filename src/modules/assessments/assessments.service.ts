@@ -48,6 +48,35 @@ export class AssessmentsService {
     return assessments.map(assessment => this.normalizeAssessment(assessment));
   }
 
+  /**
+   * 초기 평가 존재 여부 확인
+   */
+  async hasInitialAssessment(memberId: string): Promise<boolean> {
+    const initialAssessment = await this.assessmentRepository.findOne({
+      where: { 
+        memberId, 
+        isInitial: true,
+        deletedAt: IsNull(),
+      },
+    });
+    return !!initialAssessment;
+  }
+
+  /**
+   * 초기 평가 조회
+   */
+  async getInitialAssessment(memberId: string): Promise<Assessment | null> {
+    return await this.assessmentRepository.findOne({
+      where: { 
+        memberId, 
+        isInitial: true,
+        deletedAt: IsNull(),
+      },
+      relations: ['items', 'snapshot'],
+      order: { assessedAt: 'ASC' }, // 가장 오래된 초기 평가
+    });
+  }
+
   async findOne(id: string, memberId: string): Promise<Assessment> {
     const assessment = await RepositoryHelper.findOneOrFailByMemberId(
       this.assessmentRepository,
@@ -110,8 +139,14 @@ export class AssessmentsService {
 				this.logger.warn(
 					`초기 평가가 이미 존재합니다. MemberId: ${memberId}, ExistingAssessmentId: ${existingInitial.id}`,
 				);
+				// 기존 초기 평가 정보를 에러 응답에 포함
 				throw ApiExceptions.initialAssessmentAlreadyExists(
 					"초기 평가는 이미 존재합니다. 정기 평가를 생성해주세요.",
+					{
+						id: existingInitial.id,
+						assessedAt: existingInitial.assessedAt,
+						assessmentType: existingInitial.assessmentType,
+					},
 				);
 			}
     }
