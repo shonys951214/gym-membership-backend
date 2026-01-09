@@ -16,4 +16,5 @@ export * from './pt-usage-helper';
 export * from './query-builder-helper';
 export * from './entity-update-helper';
 export * from './member-helper';
+export * from './grade-score-converter';
 

@@ -17,6 +17,8 @@ import { DateHelper } from '../../common/utils/date-helper';
 import { SnapshotNormalizer } from '../../common/utils/snapshot-normalizer';
 import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 import { RepositoryHelper } from '../../common/utils/repository-helper';
+import { GradeScoreConverter } from '../../common/utils/grade-score-converter';
+import { Member } from '../../entities/member.entity';
 
 @Injectable()
 export class AssessmentsService {
@@ -29,7 +31,10 @@ export class AssessmentsService {
 		private assessmentItemRepository: Repository<AssessmentItem>,
 		@InjectRepository(AbilitySnapshot)
 		private abilitySnapshotRepository: Repository<AbilitySnapshot>,
+		@InjectRepository(Member)
+		private memberRepository: Repository<Member>,
 		private scoreCalculator: ScoreCalculator,
+		private gradeScoreConverter: GradeScoreConverter,
 	) {}
 
   async findAll(memberId: string): Promise<Assessment[]> {
@@ -136,12 +141,54 @@ export class AssessmentsService {
 
     const savedAssessment = await this.assessmentRepository.save(assessment);
 
+    // 회원 정보 조회 (체성분 평가를 위해 age, gender 필요)
+    const member = await this.memberRepository.findOne({
+      where: { id: memberId },
+    });
+
+    if (!member) {
+      this.logger.warn(`회원을 찾을 수 없습니다. MemberId: ${memberId}`);
+      throw ApiExceptions.memberNotFound('회원을 찾을 수 없습니다.');
+    }
+
     // 평가 항목 생성 및 점수 계산
     const items = await Promise.all(
       createAssessmentDto.items.map(async (itemDto) => {
-        // TODO: 실제 점수 계산 로직 (표준화 함수 필요)
-        // 현재는 임시로 value를 그대로 사용
-        const score = itemDto.value; // 실제로는 표준화 함수를 통해 계산
+        let score: number | null = null;
+
+        // 등급 기반 평가인 경우 (details에 등급 정보 존재)
+        // 유연성: flexibilityItems, 안정성: ohsa + pain, 체성분: muscleMass 등
+        // 기타: grade 필드 존재
+        const hasGradeInfo =
+          itemDto.details?.grade ||
+          itemDto.details?.flexibilityItems ||
+          (itemDto.details?.ohsa && itemDto.details?.pain) ||
+          (itemDto.details?.muscleMass && itemDto.details?.bodyFatPercentage);
+
+        if (hasGradeInfo) {
+          // 체성분 평가의 경우 회원 정보 및 체중 추가
+          const detailsForCalculation = itemDto.category === Category.BODY && member
+            ? {
+                ...itemDto.details,
+                age: member.age,
+                gender: member.gender,
+                bodyWeight: createAssessmentDto.bodyWeight || member.weight || null,
+              }
+            : itemDto.details;
+
+          score = await this.gradeScoreConverter.convertGradeToScore(
+            itemDto.category,
+            detailsForCalculation,
+          );
+
+          // 내부 점수를 details에 저장
+          if (score !== null && itemDto.details) {
+            itemDto.details.internalScore = score;
+          }
+        } else if (itemDto.value !== undefined && itemDto.value !== null) {
+          // 수치 기반 평가인 경우 (기존 로직)
+          score = itemDto.value;
+        }
 
         const assessmentItem = this.assessmentItemRepository.create({
           assessmentId: savedAssessment.id,
@@ -150,7 +197,7 @@ export class AssessmentsService {
           value: itemDto.value,
           unit: itemDto.unit,
           score,
-          details: itemDto.details, // 등급, 관찰 포인트 등 상세 정보
+          details: itemDto.details, // 등급, 내부 점수, 관찰 포인트 등 상세 정보
         });
 
         return this.assessmentItemRepository.save(assessmentItem);
@@ -191,10 +238,57 @@ export class AssessmentsService {
         assessmentId: id,
       });
 
-      // 새 항목 생성
+      // 회원 정보 조회 (체성분 평가를 위해 age, gender 필요)
+      const member = await this.memberRepository.findOne({
+        where: { id: memberId },
+      });
+
+      if (!member) {
+        this.logger.warn(`회원을 찾을 수 없습니다. MemberId: ${memberId}`);
+        throw ApiExceptions.memberNotFound('회원을 찾을 수 없습니다.');
+      }
+
+      // 새 항목 생성 및 점수 계산
       await Promise.all(
         updateAssessmentDto.items.map(async (itemDto) => {
-          const score = itemDto.value; // 실제로는 표준화 함수를 통해 계산
+          let score: number | null = null;
+
+          // 등급 기반 평가인 경우 (details에 등급 정보 존재)
+          // 유연성: flexibilityItems, 안정성: ohsa + pain, 체성분: muscleMass 등
+          // 기타: grade 필드 존재
+          const hasGradeInfo =
+            itemDto.details?.grade ||
+            itemDto.details?.flexibilityItems ||
+            (itemDto.details?.ohsa && itemDto.details?.pain) ||
+            (itemDto.details?.muscleMass && itemDto.details?.bodyFatPercentage);
+
+          if (hasGradeInfo) {
+            // 체성분 평가의 경우 회원 정보 및 체중 추가
+            const assessment = await this.assessmentRepository.findOne({
+              where: { id },
+            });
+            const detailsForCalculation = itemDto.category === Category.BODY && member
+              ? {
+                  ...itemDto.details,
+                  age: member.age,
+                  gender: member.gender,
+                  bodyWeight: updateAssessmentDto.bodyWeight || assessment?.bodyWeight || member.weight || null,
+                }
+              : itemDto.details;
+
+            score = await this.gradeScoreConverter.convertGradeToScore(
+              itemDto.category,
+              detailsForCalculation,
+            );
+
+            // 내부 점수를 details에 저장
+            if (score !== null && itemDto.details) {
+              itemDto.details.internalScore = score;
+            }
+          } else if (itemDto.value !== undefined && itemDto.value !== null) {
+            // 수치 기반 평가인 경우 (기존 로직)
+            score = itemDto.value;
+          }
 
           const assessmentItem = this.assessmentItemRepository.create({
             assessmentId: id,
@@ -203,7 +297,7 @@ export class AssessmentsService {
             value: itemDto.value,
             unit: itemDto.unit,
             score,
-            details: itemDto.details, // 등급, 관찰 포인트 등 상세 정보
+            details: itemDto.details, // 등급, 내부 점수, 관찰 포인트 등 상세 정보
           });
 
           return this.assessmentItemRepository.save(assessmentItem);
