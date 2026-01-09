@@ -50,28 +50,34 @@ export class ScoreCalculator {
 		Object.keys(itemsByCategory).forEach((category) => {
 			const categoryItems = itemsByCategory[category as Category];
 			if (categoryItems.length > 0) {
-				const averageScore = categoryItems.reduce((sum, item) => sum + item.score, 0) / categoryItems.length;
+				// null/undefined인 score는 제외하고 평균 계산
+				const validItems = categoryItems.filter((item) => item.score !== null && item.score !== undefined);
+				
+				if (validItems.length > 0) {
+					const averageScore = validItems.reduce((sum, item) => sum + (item.score || 0), 0) / validItems.length;
 
-				switch (category) {
-					case Category.STRENGTH:
-						categoryScores.strengthScore = averageScore;
-						break;
-					case Category.CARDIO:
-						categoryScores.cardioScore = averageScore;
-						break;
-					case Category.ENDURANCE:
-						categoryScores.enduranceScore = averageScore;
-						break;
-					case Category.FLEXIBILITY:
-						categoryScores.flexibilityScore = averageScore;
-						break;
-					case Category.BODY:
-						categoryScores.bodyScore = averageScore;
-						break;
-					case Category.STABILITY:
-						categoryScores.stabilityScore = averageScore;
-						break;
+					switch (category) {
+						case Category.STRENGTH:
+							categoryScores.strengthScore = averageScore;
+							break;
+						case Category.CARDIO:
+							categoryScores.cardioScore = averageScore;
+							break;
+						case Category.ENDURANCE:
+							categoryScores.enduranceScore = averageScore;
+							break;
+						case Category.FLEXIBILITY:
+							categoryScores.flexibilityScore = averageScore;
+							break;
+						case Category.BODY:
+							categoryScores.bodyScore = averageScore;
+							break;
+						case Category.STABILITY:
+							categoryScores.stabilityScore = averageScore;
+							break;
+					}
 				}
+				// validItems가 없으면 해당 카테고리는 null로 유지 (점수 계산 불가)
 			}
 		});
 

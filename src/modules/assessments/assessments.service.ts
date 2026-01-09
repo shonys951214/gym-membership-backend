@@ -216,6 +216,13 @@ export class AssessmentsService {
             detailsForCalculation,
           );
 
+          // 점수 계산 실패 시 로깅
+          if (score === null && itemDto.category === Category.FLEXIBILITY) {
+            this.logger.warn(
+              `유연성 점수 계산 실패. MemberId: ${memberId}, Details: ${JSON.stringify(detailsForCalculation)}`,
+            );
+          }
+
           // 내부 점수를 details에 저장
           if (score !== null && itemDto.details) {
             itemDto.details.internalScore = score;
