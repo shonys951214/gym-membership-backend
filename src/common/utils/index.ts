@@ -17,4 +17,8 @@ export * from './query-builder-helper';
 export * from './entity-update-helper';
 export * from './member-helper';
 export * from './grade-score-converter';
+export * from './one-rep-max-calculator';
+export * from './unit-converter';
+export * from './relative-strength-calculator';
+export * from './strength-level-evaluator';
 

@@ -18,6 +18,8 @@ import { AbilitySnapshot } from "../../entities/ability-snapshot.entity";
 import { WorkoutRecord } from "../../entities/workout-record.entity";
 import { PTSession } from "../../entities/pt-session.entity";
 import { WorkoutRoutine } from "../../entities/workout-routine.entity";
+import { Exercise } from "../../entities/exercise.entity";
+import { StrengthStandard } from "../../entities/strength-standard.entity";
 import { AssessmentsModule } from "../assessments/assessments.module";
 
 @Module({
@@ -32,6 +34,8 @@ import { AssessmentsModule } from "../assessments/assessments.module";
 			WorkoutRecord,
 			PTSession,
 			WorkoutRoutine,
+			Exercise,
+			StrengthStandard,
 		]),
 		AssessmentsModule,
 	],

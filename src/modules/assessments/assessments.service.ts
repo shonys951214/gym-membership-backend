@@ -19,6 +19,11 @@ import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 import { RepositoryHelper } from '../../common/utils/repository-helper';
 import { GradeScoreConverter } from '../../common/utils/grade-score-converter';
 import { Member } from '../../entities/member.entity';
+import { Exercise } from '../../entities/exercise.entity';
+import { StrengthStandard } from '../../entities/strength-standard.entity';
+import { OneRepMaxCalculator, OneRepMaxFormula } from '../../common/utils/one-rep-max-calculator';
+import { RelativeStrengthCalculator } from '../../common/utils/relative-strength-calculator';
+import { StrengthLevelEvaluator } from '../../common/utils/strength-level-evaluator';
 
 @Injectable()
 export class AssessmentsService {
@@ -33,6 +38,10 @@ export class AssessmentsService {
 		private abilitySnapshotRepository: Repository<AbilitySnapshot>,
 		@InjectRepository(Member)
 		private memberRepository: Repository<Member>,
+		@InjectRepository(Exercise)
+		private exerciseRepository: Repository<Exercise>,
+		@InjectRepository(StrengthStandard)
+		private strengthStandardRepository: Repository<StrengthStandard>,
 		private scoreCalculator: ScoreCalculator,
 		private gradeScoreConverter: GradeScoreConverter,
 	) {}
@@ -238,6 +247,37 @@ export class AssessmentsService {
           score = itemDto.value;
         }
 
+        // STRENGTH 카테고리이고 무게와 횟수가 있으면 Strength Level 계산
+        let detailsWithStrength = itemDto.details || {};
+        if (
+          itemDto.category === Category.STRENGTH &&
+          itemDto.value !== undefined &&
+          itemDto.value !== null &&
+          itemDto.unit &&
+          member
+        ) {
+          try {
+            const strengthInfo = await this.calculateStrengthLevelForAssessment(
+              itemDto.name,
+              itemDto.value,
+              itemDto.unit,
+              member,
+            );
+            if (strengthInfo) {
+              detailsWithStrength = {
+                ...detailsWithStrength,
+                strengthLevel: strengthInfo.level,
+                oneRepMax: strengthInfo.oneRepMax,
+                relativeStrength: strengthInfo.relativeStrength,
+              };
+            }
+          } catch (error) {
+            this.logger.warn(
+              `Strength Level 계산 실패: ${error.message} (ExerciseName: ${itemDto.name})`,
+            );
+          }
+        }
+
         const assessmentItem = this.assessmentItemRepository.create({
           assessmentId: savedAssessment.id,
           category: itemDto.category,
@@ -245,7 +285,7 @@ export class AssessmentsService {
           value: itemDto.value,
           unit: itemDto.unit,
           score,
-          details: itemDto.details, // 등급, 내부 점수, 관찰 포인트 등 상세 정보
+          details: detailsWithStrength, // 등급, 내부 점수, 관찰 포인트, Strength Level 등 상세 정보
         });
 
         return this.assessmentItemRepository.save(assessmentItem);
@@ -338,6 +378,37 @@ export class AssessmentsService {
             score = itemDto.value;
           }
 
+          // STRENGTH 카테고리이고 무게와 횟수가 있으면 Strength Level 계산
+          let detailsWithStrength = itemDto.details || {};
+          if (
+            itemDto.category === Category.STRENGTH &&
+            itemDto.value !== undefined &&
+            itemDto.value !== null &&
+            itemDto.unit &&
+            member
+          ) {
+            try {
+              const strengthInfo = await this.calculateStrengthLevelForAssessment(
+                itemDto.name,
+                itemDto.value,
+                itemDto.unit,
+                member,
+              );
+              if (strengthInfo) {
+                detailsWithStrength = {
+                  ...detailsWithStrength,
+                  strengthLevel: strengthInfo.level,
+                  oneRepMax: strengthInfo.oneRepMax,
+                  relativeStrength: strengthInfo.relativeStrength,
+                };
+              }
+            } catch (error) {
+              this.logger.warn(
+                `Strength Level 계산 실패: ${error.message} (ExerciseName: ${itemDto.name})`,
+              );
+            }
+          }
+
           const assessmentItem = this.assessmentItemRepository.create({
             assessmentId: id,
             category: itemDto.category,
@@ -345,7 +416,7 @@ export class AssessmentsService {
             value: itemDto.value,
             unit: itemDto.unit,
             score,
-            details: itemDto.details, // 등급, 내부 점수, 관찰 포인트 등 상세 정보
+            details: detailsWithStrength, // 등급, 내부 점수, 관찰 포인트, Strength Level 등 상세 정보
           });
 
           return this.assessmentItemRepository.save(assessmentItem);
@@ -578,6 +649,81 @@ export class AssessmentsService {
 				],
 				version: snapshot.version || "v1",
 			})),
+		};
+	}
+
+	/**
+	 * AssessmentItem의 Strength Level 계산
+	 * @param exerciseName 운동명
+	 * @param value 측정값 (무게)
+	 * @param unit 단위 (kg, lb 등)
+	 * @param member 회원 정보
+	 * @returns Strength Level 정보
+	 */
+	private async calculateStrengthLevelForAssessment(
+		exerciseName: string,
+		value: number,
+		unit: string,
+		member: Member,
+	): Promise<{
+		level: string | null;
+		oneRepMax: number;
+		relativeStrength: number;
+	} | null> {
+		// 체중이나 성별이 없으면 계산 불가
+		if (!member.weight || !member.gender) {
+			return null;
+		}
+
+			// 단위 변환 (lb → kg)
+			const { UnitConverter } = await import('../../common/utils/unit-converter');
+			let weightKg = value;
+			if (unit.toLowerCase() === 'lb' || unit.toLowerCase() === 'lbs') {
+				weightKg = UnitConverter.lbToKg(value);
+			}
+
+		// 운동명으로 Exercise 찾기
+		const exercise = await this.exerciseRepository.findOne({
+			where: [
+				{ name: exerciseName },
+				{ nameEn: exerciseName },
+			],
+		});
+
+		if (!exercise) {
+			return null;
+		}
+
+		// 횟수는 기본값으로 1회 (1RM 계산을 위해)
+		// 실제로는 평가 항목에 횟수 정보가 있어야 하지만, 여기서는 1RM으로 가정
+		const reps = 1; // 1RM이므로 1회
+
+		// 1RM 계산 (이미 1RM이면 그대로 사용)
+		const oneRepMaxResult = OneRepMaxCalculator.calculate(
+			weightKg,
+			reps,
+			OneRepMaxFormula.EPLEY,
+		);
+
+		// 상대적 강도 계산
+		const relativeStrengthResult = RelativeStrengthCalculator.calculate(
+			oneRepMaxResult.oneRepMax,
+			member.weight,
+		);
+
+		// Strength Level 판정
+		const evaluator = new StrengthLevelEvaluator(this.strengthStandardRepository);
+		const evaluationResult = await evaluator.evaluate(
+			exercise.id,
+			oneRepMaxResult.oneRepMax,
+			member.weight,
+			member.gender,
+		);
+
+		return {
+			level: evaluationResult.level || null,
+			oneRepMax: oneRepMaxResult.oneRepMax,
+			relativeStrength: relativeStrengthResult.relativeStrength,
 		};
 	}
 }

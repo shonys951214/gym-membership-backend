@@ -435,6 +435,43 @@ export class MembersController {
 		return ApiResponseHelper.success(null, '운동 기록 삭제 성공');
 	}
 
+	@Get(':id/workout-records/:recordId/strength-level')
+	@ApiOperation({ summary: '운동 기록의 Strength Level 조회', description: '특정 운동 기록의 Strength Level 정보를 조회합니다.' })
+	@ApiResponse({ status: 200, description: 'Strength Level 조회 성공' })
+	@ApiResponse({ status: 404, description: '운동 기록을 찾을 수 없습니다' })
+	async getWorkoutRecordStrengthLevel(
+		@Param('id') id: string,
+		@Param('recordId') recordId: string,
+	) {
+		const record = await this.workoutRecordsService.findOne(recordId, id);
+		
+		const response: any = {
+			oneRepMax: record.oneRepMax || null,
+			relativeStrength: record.relativeStrength || null,
+			strengthLevel: record.strengthLevel || null,
+			bodyWeight: null,
+		};
+
+		// 회원 정보에서 체중 조회
+		const member = await this.membersService.findOne(id);
+		if (member && member.weight) {
+			response.bodyWeight = member.weight;
+		}
+
+		return ApiResponseHelper.success(response, 'Strength Level 조회 성공');
+	}
+
+	@Get(':id/strength-progress')
+	@ApiOperation({ summary: '회원의 운동별 Strength Level 변화 추적', description: '회원의 운동별 Strength Level 변화를 조회합니다.' })
+	@ApiResponse({ status: 200, description: 'Strength Level 변화 추적 조회 성공' })
+	async getStrengthProgress(
+		@Param('id') id: string,
+		@Query('exerciseName') exerciseName?: string,
+	) {
+		const progress = await this.workoutRecordsService.getStrengthProgress(id, exerciseName);
+		return ApiResponseHelper.success(progress, 'Strength Level 변화 추적 조회 성공');
+	}
+
 	// 1차피드백: PT 세션
 	@Get(':id/pt-sessions')
 	@ApiOperation({

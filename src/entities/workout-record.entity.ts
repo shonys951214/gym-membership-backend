@@ -9,6 +9,7 @@ import {
 	Index,
 } from 'typeorm';
 import { Member } from './member.entity';
+import { StrengthLevel } from '../common/enums';
 
 export enum WorkoutType {
 	PT = 'PT', // PT 세션 참여
@@ -69,6 +70,21 @@ export class WorkoutRecord {
 
 	@Column({ type: 'text', name: 'trainer_comment', nullable: true })
 	trainerComment?: string; // 트레이너 코멘트
+
+	// Strength Level 관련 필드
+	@Column({ type: 'float', name: 'one_rep_max', nullable: true })
+	oneRepMax?: number; // 1RM (One Rep Max) 계산값 (kg)
+
+	@Column({ type: 'float', name: 'relative_strength', nullable: true })
+	relativeStrength?: number; // 상대적 강도 (체중 대비 무게 비율, %)
+
+	@Column({
+		type: 'enum',
+		enum: StrengthLevel,
+		name: 'strength_level',
+		nullable: true,
+	})
+	strengthLevel?: StrengthLevel; // Strength Level 판정 결과
 
 	@CreateDateColumn({ name: 'created_at' })
 	createdAt: Date;

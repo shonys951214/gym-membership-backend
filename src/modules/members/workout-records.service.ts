@@ -4,6 +4,7 @@ import { Repository, Between } from 'typeorm';
 import { WorkoutRecord, WorkoutType } from '../../entities/workout-record.entity';
 import { Member } from '../../entities/member.entity';
 import { PTUsage } from '../../entities/pt-usage.entity';
+import { Exercise } from '../../entities/exercise.entity';
 import { CreateWorkoutRecordDto } from './dto/create-workout-record.dto';
 import { UpdateWorkoutRecordDto } from './dto/update-workout-record.dto';
 import { WorkoutVolumeQueryDto, VolumePeriod } from './dto/workout-volume-query.dto';
@@ -16,6 +17,10 @@ import { QueryBuilderHelper } from '../../common/utils/query-builder-helper';
 import { DateRangeHelper } from '../../common/utils/date-range-helper';
 import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 import { RepositoryHelper } from '../../common/utils/repository-helper';
+import { OneRepMaxCalculator, OneRepMaxFormula } from '../../common/utils/one-rep-max-calculator';
+import { RelativeStrengthCalculator } from '../../common/utils/relative-strength-calculator';
+import { StrengthLevelEvaluator } from '../../common/utils/strength-level-evaluator';
+import { StrengthStandard } from '../../entities/strength-standard.entity';
 
 @Injectable()
 export class WorkoutRecordsService {
@@ -28,6 +33,10 @@ export class WorkoutRecordsService {
 		private memberRepository: Repository<Member>,
 		@InjectRepository(PTUsage)
 		private ptUsageRepository: Repository<PTUsage>,
+		@InjectRepository(Exercise)
+		private exerciseRepository: Repository<Exercise>,
+		@InjectRepository(StrengthStandard)
+		private strengthStandardRepository: Repository<StrengthStandard>,
 		@Inject(forwardRef(() => PTSessionsService))
 		private ptSessionsService: PTSessionsService,
 		@Inject(forwardRef(() => MembersService))
@@ -144,6 +153,9 @@ export class WorkoutRecordsService {
 
 		const record = this.workoutRecordRepository.create(recordData);
 
+		// Strength Level 자동 계산
+		await this.calculateStrengthLevel(record, memberId);
+
 		return this.workoutRecordRepository.save(record);
 	}
 
@@ -159,6 +171,9 @@ export class WorkoutRecordsService {
 
 		// 볼륨 재계산 (weight, reps, sets 중 하나라도 변경되었을 수 있음)
 		record.volume = WorkoutHelper.calculateVolume(record.weight, record.reps, record.sets);
+
+		// Strength Level 재계산 (weight, reps가 변경되었을 수 있음)
+		await this.calculateStrengthLevel(record, memberId);
 
 		return this.workoutRecordRepository.save(record);
 	}
@@ -458,6 +473,138 @@ export class WorkoutRecordsService {
 			events,
 			startDate,
 			endDate,
+		};
+	}
+
+	/**
+	 * Strength Level 자동 계산 및 저장
+	 * @param record WorkoutRecord 엔티티
+	 * @param memberId 회원 ID
+	 */
+	private async calculateStrengthLevel(record: WorkoutRecord, memberId: string): Promise<void> {
+		try {
+			// 회원 정보 조회 (체중, 성별 필요)
+			const member = await this.memberRepository.findOne({
+				where: { id: memberId },
+			});
+
+			if (!member) {
+				this.logger.warn(`회원을 찾을 수 없습니다: ${memberId}`);
+				return;
+			}
+
+			// 체중이나 성별이 없으면 계산 불가
+			if (!member.weight || !member.gender) {
+				this.logger.debug(
+					`체중 또는 성별 정보가 없어 Strength Level 계산을 건너뜁니다. (MemberId: ${memberId})`,
+				);
+				return;
+			}
+
+			// 운동명으로 Exercise 찾기
+			const exercise = await this.exerciseRepository.findOne({
+				where: [
+					{ name: record.exerciseName },
+					{ nameEn: record.exerciseName },
+				],
+			});
+
+			if (!exercise) {
+				this.logger.debug(
+					`운동을 찾을 수 없어 Strength Level 계산을 건너뜁니다. (ExerciseName: ${record.exerciseName})`,
+				);
+				return;
+			}
+
+			// 1RM 계산
+			const oneRepMaxResult = OneRepMaxCalculator.calculate(
+				record.weight,
+				record.reps,
+				OneRepMaxFormula.EPLEY,
+			);
+
+			// 상대적 강도 계산
+			const relativeStrengthResult = RelativeStrengthCalculator.calculate(
+				oneRepMaxResult.oneRepMax,
+				member.weight,
+			);
+
+			// Strength Level 판정
+			const evaluator = new StrengthLevelEvaluator(this.strengthStandardRepository);
+			const evaluationResult = await evaluator.evaluate(
+				exercise.id,
+				oneRepMaxResult.oneRepMax,
+				member.weight,
+				member.gender,
+			);
+
+			// 결과 저장
+			record.oneRepMax = oneRepMaxResult.oneRepMax;
+			record.relativeStrength = relativeStrengthResult.relativeStrength;
+			record.strengthLevel = evaluationResult.level || undefined;
+
+			this.logger.debug(
+				`Strength Level 계산 완료: ${record.exerciseName} - 1RM: ${oneRepMaxResult.oneRepMax}kg, 상대적 강도: ${relativeStrengthResult.relativeStrength}%, 레벨: ${evaluationResult.level || 'N/A'}`,
+			);
+		} catch (error) {
+			// 계산 실패해도 운동 기록 저장은 계속 진행
+			this.logger.error(
+				`Strength Level 계산 중 오류 발생: ${error.message} (MemberId: ${memberId}, ExerciseName: ${record.exerciseName})`,
+			);
+		}
+	}
+
+	/**
+	 * 회원의 운동별 Strength Level 변화 추적
+	 * @param memberId 회원 ID
+	 * @param exerciseName 운동명 (선택적, 없으면 모든 운동)
+	 * @returns Strength Level 변화 추적 결과
+	 */
+	async getStrengthProgress(
+		memberId: string,
+		exerciseName?: string,
+	): Promise<{
+		exerciseName?: string;
+		history: Array<{
+			oneRepMax: number | null;
+			relativeStrength: number | null;
+			strengthLevel: string | null;
+			workoutDate: string;
+		}>;
+		current?: {
+			oneRepMax: number | null;
+			relativeStrength: number | null;
+			strengthLevel: string | null;
+		};
+	}> {
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+
+		const where: any = { memberId };
+		if (exerciseName) {
+			where.exerciseName = exerciseName;
+		}
+
+		const records = await this.workoutRecordRepository.find({
+			where,
+			order: {
+				workoutDate: 'ASC',
+				createdAt: 'ASC',
+			},
+		});
+
+		const history = records.map((record) => ({
+			oneRepMax: record.oneRepMax || null,
+			relativeStrength: record.relativeStrength || null,
+			strengthLevel: record.strengthLevel || null,
+			workoutDate: record.workoutDate.toISOString().split('T')[0],
+		}));
+
+		const current = history.length > 0 ? history[history.length - 1] : undefined;
+
+		return {
+			exerciseName: exerciseName || undefined,
+			history,
+			current,
 		};
 	}
 }
