@@ -11,6 +11,11 @@ import { InjuryRestriction } from "../entities/injury-restriction.entity";
 import { WorkoutRecord } from "../entities/workout-record.entity";
 import { PTSession } from "../entities/pt-session.entity";
 import { WorkoutRoutine } from "../entities/workout-routine.entity";
+import { AssessmentGradeConstant } from "../entities/assessment-grade-constant.entity";
+import { AssessmentCategoryScore } from "../entities/assessment-category-score.entity";
+import { FlexibilityItemWeight } from "../entities/flexibility-item-weight.entity";
+import { FlexibilityGradeThreshold } from "../entities/flexibility-grade-threshold.entity";
+import { BodyCompositionStandard } from "../entities/body-composition-standard.entity";
 
 // DATABASE_URL이 있으면 사용, 없으면 개별 설정 사용
 const getDatabaseConfig = () => {
@@ -38,7 +43,7 @@ const getDatabaseConfig = () => {
 export const dataSourceOptions: DataSourceOptions = {
 	type: "postgres",
 	...getDatabaseConfig(),
-	entities: [User, Member, Membership, PTUsage, Assessment, AssessmentItem, AbilitySnapshot, InjuryHistory, InjuryRestriction, WorkoutRecord, PTSession, WorkoutRoutine],
+	entities: [User, Member, Membership, PTUsage, Assessment, AssessmentItem, AbilitySnapshot, InjuryHistory, InjuryRestriction, WorkoutRecord, PTSession, WorkoutRoutine, AssessmentGradeConstant, AssessmentCategoryScore, FlexibilityItemWeight, FlexibilityGradeThreshold, BodyCompositionStandard],
 	migrations: [__dirname + "/../migrations/*{.ts,.js}"],
 	synchronize: process.env.DB_SYNCHRONIZE === "true" || process.env.NODE_ENV === "development",
 	logging: process.env.DB_LOGGING === "true" || process.env.NODE_ENV === "development",

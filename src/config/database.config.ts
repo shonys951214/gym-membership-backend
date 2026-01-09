@@ -12,6 +12,11 @@ import { InjuryRestriction } from '../entities/injury-restriction.entity';
 import { WorkoutRecord } from '../entities/workout-record.entity';
 import { PTSession } from '../entities/pt-session.entity';
 import { WorkoutRoutine } from '../entities/workout-routine.entity';
+import { AssessmentGradeConstant } from '../entities/assessment-grade-constant.entity';
+import { AssessmentCategoryScore } from '../entities/assessment-category-score.entity';
+import { FlexibilityItemWeight } from '../entities/flexibility-item-weight.entity';
+import { FlexibilityGradeThreshold } from '../entities/flexibility-grade-threshold.entity';
+import { BodyCompositionStandard } from '../entities/body-composition-standard.entity';
 
 export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOptions => {
 	const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
@@ -33,6 +38,11 @@ export const getDatabaseConfig = (configService: ConfigService): TypeOrmModuleOp
 			WorkoutRecord,
 			PTSession,
 			WorkoutRoutine,
+			AssessmentGradeConstant,
+			AssessmentCategoryScore,
+			FlexibilityItemWeight,
+			FlexibilityGradeThreshold,
+			BodyCompositionStandard,
 		],
 		migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 		synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
