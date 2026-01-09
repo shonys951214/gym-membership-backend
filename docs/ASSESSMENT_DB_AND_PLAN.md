@@ -21,6 +21,8 @@
     - [점수 환산 메커니즘](#점수-환산-메커니즘)
     - [개발 우선순위](#개발-우선순위)
     - [환산 테이블 구조](#환산-테이블-구조)
+3. [개발 시 주의사항 및 통일 규칙](#개발-시-주의사항-및-통일-규칙) ⚠️
+4. [프론트엔드 개발 가이드](#프론트엔드-개발-가이드)
 
 ---
 
@@ -1377,11 +1379,270 @@ const weightedScore =
 
 ---
 
+## ⚠️ 개발 시 주의사항 및 통일 규칙
+
+> **프론트엔드와 백엔드 개발 시 반드시 확인하고 준수해야 할 사항들입니다.**
+
+### 1. 등급 값 통일 규칙
+
+**입력 등급 (프론트엔드 → 백엔드)**:
+
+- 하체 근력: `'A'`, `'B'`, `'C'`, `'D'`, `'D-1'`, `'D-2'` (정확히 이 형식)
+- 심폐 지구력: `'A'`, `'B'`, `'C'`, `'IMPOSSIBLE'`
+- 근지구력: `'A'`, `'B'`, `'C'`, `'IMPOSSIBLE'`
+- 유연성: 각 항목별 `'A'`, `'B'`, `'C'` (null 가능)
+- 안정성: OHSA `'A'`, `'B'`, `'C'` / 통증 `'none'`, `'present'`
+
+**⚠️ 주의**:
+
+- 대소문자 구분 (`'A'` ✅, `'a'` ❌)
+- 하이픈 포함 (`'D-1'` ✅, `'D1'` ❌)
+- 공백 없음 (`'D-1'` ✅, `'D - 1'` ❌)
+
+### 2. 날짜 형식 통일
+
+**요청 시**: ISO 8601 형식 (YYYY-MM-DD)
+
+```typescript
+assessedAt: "2024-01-15"; // ✅ 올바른 형식
+assessedAt: "2024/01/15"; // ❌ 잘못된 형식
+assessedAt: "01-15-2024"; // ❌ 잘못된 형식
+```
+
+**응답 시**: 백엔드에서 ISO 8601 형식으로 반환
+
+### 3. 필수/선택 필드 구분
+
+**필수 필드** (반드시 전송):
+
+- `assessmentType`: "INITIAL" | "PERIODIC"
+- `assessedAt`: 날짜 문자열
+- `items`: 배열 (최소 1개 이상)
+- 각 `item`의 `category`, `name`
+- 각 카테고리별 필수 입력 (하체 근력: `details.grade`, 유연성: `details.flexibilityItems` 등)
+
+**선택 필드** (조건부):
+
+- `bodyWeight`: 체중 (체성분 평가 시 권장)
+- `condition`: 컨디션
+- `trainerComment`: 트레이너 코멘트
+- `item.value`, `item.unit`: 등급 기반 평가의 경우 생략 가능
+- `details.recoverySpeed`: 심폐 지구력 B 선택 시에만
+- `details.alternative`: 하체 근력 D 선택 시에만
+
+### 4. 조건부 입력 처리 규칙
+
+**하체 근력**:
+
+- `grade = 'D'` 선택 시 → 반드시 `alternative` 필드에 `'D-1'` 또는 `'D-2'` 전송
+- `grade = 'A'`, `'B'`, `'C'` 선택 시 → `alternative` 필드 전송하지 않음
+
+**심폐 지구력**:
+
+- `grade = 'B'` 선택 시 → `recoverySpeed` 배열에 `'fast'` 또는 `'slow'` 포함 가능
+- `grade = 'A'`, `'C'` 선택 시 → `recoverySpeed` 필드 전송하지 않음
+
+**유연성**:
+
+- 최소 1개 항목은 반드시 입력 (좌전굴, 어깨, 고관절 중)
+- 햄스트링은 선택 사항
+
+### 5. 점수 계산 관련 주의사항
+
+**⚠️ 중요**: 프론트엔드는 점수를 계산하지 않습니다.
+
+- 프론트엔드: 등급만 전송 (`details.grade`, `details.flexibilityItems` 등)
+- 백엔드: 등급을 내부 점수로 변환하여 계산
+- 응답: 백엔드에서 계산된 점수를 `snapshot`에 포함하여 반환
+
+**프론트엔드에서 하지 말아야 할 것**:
+
+```typescript
+// ❌ 프론트엔드에서 점수 계산 금지
+const score = calculateScore(grade); // 이렇게 하지 마세요!
+
+// ✅ 등급만 전송
+const request = {
+	details: {
+		grade: "B", // 등급만 전송
+	},
+};
+```
+
+### 6. 레이더 차트 표시 규칙
+
+**반드시 준수해야 할 규칙**:
+
+1. **점수에 ×0.85 적용**:
+
+    ```typescript
+    const displayScore = snapshot.strengthScore * 0.85;
+    ```
+
+2. **축 최대값 적용**:
+    - 안정성: 20
+    - 심폐 지구력: 20
+    - 근지구력: 20
+    - 하체 근력: 15
+    - 체성분: 15
+    - 유연성: 10
+
+3. **중앙 기준선 없음**: 레이더 차트에 중앙 기준선을 표시하지 않음
+
+4. **등급 표시**: 내부 점수는 비노출, 등급만 표시 (안정적/무난함/제한 있음/준비 필요)
+
+### 7. 에러 처리 통일
+
+**백엔드 에러 응답 형식**:
+
+```typescript
+{
+  success: false,
+  message: "에러 메시지",
+  errorCode: "ERROR_CODE"
+}
+```
+
+**프론트엔드 처리**:
+
+- `errorCode`에 따라 적절한 메시지 표시
+- 해당 입력 필드에 에러 스타일 적용
+- 재시도 가능하도록 UI 제공
+
+**주요 에러 코드**:
+
+- `MISSING_REQUIRED_ITEM`: 필수 항목 누락
+- `INVALID_GRADE`: 잘못된 등급 값
+- `MISSING_CONDITIONAL_INPUT`: 조건부 입력 누락
+- `INVALID_DATE_FORMAT`: 잘못된 날짜 형식
+
+### 8. DB 테이블 참조 시 주의사항
+
+**백엔드 개발자 주의사항**:
+
+1. **등급-점수 매핑 조회**:
+    - `assessment_category_scores` 테이블에서 조회 시
+    - `category`, `input_grade`, `conditions` 모두 일치해야 함
+    - `is_active = true`인 레코드만 사용
+
+2. **유연성 가중치 계산**:
+    - `flexibility_item_weights` 테이블에서 가중치 조회
+    - 가중치 합 계산 후 `flexibility_grade_thresholds` 테이블에서 등급 판정
+
+3. **체성분 기준 조회**:
+    - `body_composition_standards` 테이블에서
+    - `gender`, `age_min`, `age_max` 범위로 조회
+    - `is_active = true`인 레코드만 사용
+
+4. **등급 상수 참조**:
+    - `assessment_grade_constants` 테이블에서
+    - `grade_code`로 조회 (STABLE, NORMAL, LIMITED, PREPARE)
+
+### 9. API 엔드포인트 통일
+
+**평가 생성**:
+
+- `POST /api/members/:memberId/assessments`
+- 요청 본문: `CreateAssessmentDto` 형식
+
+**평가 조회**:
+
+- `GET /api/members/:memberId/assessments/:assessmentId`
+- 응답: 평가 정보 + 스냅샷 포함
+
+**레이더 차트 데이터**:
+
+- `GET /api/members/:memberId/abilities/hexagon?compare=true`
+- `compare=true` 시 초기 평가와 비교 데이터 포함
+
+### 10. 데이터 검증 규칙
+
+**프론트엔드 검증**:
+
+- 필수 항목 선택 확인
+- 조건부 입력 표시/숨김 로직
+- 날짜 형식 검증
+- 숫자 입력 유효성 검사 (체성분: 양수, 범위 체크)
+
+**백엔드 검증**:
+
+- DTO 레벨 검증 (class-validator)
+- 비즈니스 로직 검증 (조건부 입력 확인)
+- DB 제약조건 검증
+
+### 11. 등급 코드 매핑
+
+**내부 등급 코드** (DB 저장용):
+
+- `STABLE`: 안정적 (80점)
+- `NORMAL`: 무난함 (60점)
+- `LIMITED`: 제한 있음 (40점)
+- `PREPARE`: 준비 필요 (20점)
+
+**입력 등급** (프론트엔드 → 백엔드):
+
+- `A`, `B`, `C`, `D`, `'D-1'`, `'D-2'` 등
+
+**변환 로직**:
+
+- 백엔드에서 입력 등급을 내부 등급 코드로 변환
+- `assessment_category_scores` 테이블 참조
+
+### 12. null 처리 규칙
+
+**프론트엔드**:
+
+- 선택적 필드는 `null` 또는 `undefined` 전송 가능
+- 조건부 입력은 해당 조건이 아닐 때 필드를 아예 전송하지 않거나 `null` 전송
+
+**백엔드**:
+
+- `value`, `unit`, `score`는 nullable (등급 기반 평가의 경우)
+- `details`는 nullable이지만, 등급 기반 평가의 경우 반드시 포함
+
+### 13. 버전 관리
+
+**점수 계산 버전**:
+
+- `ability_snapshots.version` 필드에 저장
+- 현재 버전: `"v1"`
+- 버전 변경 시 기존 데이터와의 호환성 고려
+
+### 14. 카테고리별 필수 입력 체크리스트
+
+**프론트엔드에서 반드시 확인**:
+
+- [ ] 하체 근력: `details.grade` 필수
+- [ ] 심폐 지구력: `details.grade` 필수 (B 선택 시 `recoverySpeed` 권장)
+- [ ] 근지구력: `details.grade` 필수
+- [ ] 유연성: `details.flexibilityItems` 최소 1개 항목 필수
+- [ ] 체성분: `details.muscleMass`, `fatMass`, `bodyFatPercentage` 필수
+- [ ] 안정성: `details.ohsa`, `details.pain` 필수
+
+### 15. 백엔드 계산 로직 구현 시 주의사항
+
+**등급-점수 변환**:
+
+- `assessment_category_scores` 테이블에서 조회 시 `conditions` JSONB 필드 매칭 주의
+- 예: 심폐 지구력 B + 회복 빠름 → `conditions: {"recoverySpeed": ["fast"]}` 매칭
+
+**유연성 계산**:
+
+- 각 항목별 등급을 가중치로 변환 (C 등급만 가중치 합산)
+- 가중치 합 범위로 최종 등급 판정
+
+**체성분 계산**:
+
+- 회원의 `age`, `gender`로 연령대별 기준 조회
+- 골격근량, 체지방량, 비만도를 종합하여 등급 판정
+
+---
+
 ## 💻 프론트엔드 개발 가이드
 
 **목적**: 백엔드 API 구조와 요청/응답 형식, UI 구현 방법 안내
 
-**⚠️ 중요**: 내일 백엔드 DB 업데이트 및 계산 로직 구현 예정 → 프론트엔드는 이 가이드를 참고하여 개발 진행
+**⚠️ 중요**: 위의 "개발 시 주의사항 및 통일 규칙" 섹션을 먼저 확인하세요.
 
 ---
 
@@ -2299,7 +2560,7 @@ INSERT INTO assessment_conversion_rules (
 
 **목적**: 백엔드 API 구조와 요청/응답 형식, UI 구현 방법 안내
 
-**⚠️ 중요**: 내일 백엔드 DB 업데이트 및 계산 로직 구현 예정 → 프론트엔드는 이 가이드를 참고하여 개발 진행
+**⚠️ 중요**: 위의 "개발 시 주의사항 및 통일 규칙" 섹션을 먼저 확인하세요.
 
 ---
 
