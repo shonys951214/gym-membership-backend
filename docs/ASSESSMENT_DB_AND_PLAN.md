@@ -581,7 +581,7 @@ export const INITIAL_ASSESSMENT_ITEMS = {
 - **관찰 포인트** (JSONB `details` 필드에 저장):
     - 발–무릎–골반–상체 정렬
     - 좌우 차이
-    - 보상 패턴
+    - 부상 패턴
 
 **(2) 통증 체크 (자가 보고)**
 
@@ -857,9 +857,9 @@ export const INITIAL_ASSESSMENT_ITEMS = {
 
 **OHSA 종합** (단일 선택):
 
-- ☐ A. 보상 거의 없음
-- ☐ B. 경미한 보상
-- ☐ C. 명확한 보상
+- ☐ A. 부상 거의 없음
+- ☐ B. 경미한 부상
+- ☐ C. 명확한 부상
 
 **통증 체크** (단일 선택):
 
@@ -1219,7 +1219,7 @@ const weightedScore =
 
 - 정렬 패턴 (0~30점)
 - 좌우 차이 (0~20점)
-- 보상 동작 빈도 (0~20점)
+- 부상 동작 빈도 (0~20점)
 
 **통증 체크**:
 
@@ -1801,9 +1801,9 @@ interface StabilityInput {
 <div>
   <h4>OHSA 종합</h4>
   <RadioGroup name="ohsa">
-    <Radio value="A">보상 거의 없음</Radio>
-    <Radio value="B">경미한 보상</Radio>
-    <Radio value="C">명확한 보상</Radio>
+    <Radio value="A">부상 거의 없음</Radio>
+    <Radio value="B">경미한 부상</Radio>
+    <Radio value="C">명확한 부상</Radio>
   </RadioGroup>
 </div>
 
@@ -2719,9 +2719,9 @@ interface StabilityInput {
 <div>
   <h4>OHSA 종합</h4>
   <RadioGroup name="ohsa">
-    <Radio value="A">보상 거의 없음</Radio>
-    <Radio value="B">경미한 보상</Radio>
-    <Radio value="C">명확한 보상</Radio>
+    <Radio value="A">부상 거의 없음</Radio>
+    <Radio value="B">경미한 부상</Radio>
+    <Radio value="C">명확한 부상</Radio>
   </RadioGroup>
 </div>
 
