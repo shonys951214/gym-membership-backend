@@ -10,119 +10,110 @@
 ### 1. 유연성 항목 추가 (262-282줄)
 
 **현재 코드 (262줄)**:
+
 ```typescript
 // 4. 유연성은 백엔드 enum 미지원으로 제외
 ```
 
 **수정 후**:
+
 ```typescript
 // 4. 유연성
-const flexibilityItemsEntries = Object.entries(formData.flexibilityItems || {}).filter(
-  ([_, value]) => value && (value === "A" || value === "B" || value === "C")
-);
+const flexibilityItemsEntries = Object.entries(formData.flexibilityItems || {}).filter(([_, value]) => value && (value === "A" || value === "B" || value === "C"));
 
 if (flexibilityItemsEntries.length > 0) {
-  const flexibilityItemsObj: Record<string, string> = {};
-  flexibilityItemsEntries.forEach(([key, value]) => {
-    if (value) {
-      flexibilityItemsObj[key] = value;
-    }
-  });
-  
-  items.push({
-    category: "FLEXIBILITY",
-    name: "유연성 평가",
-    details: {
-      flexibilityItems: flexibilityItemsObj,
-    },
-  });
+	const flexibilityItemsObj: Record<string, string> = {};
+	flexibilityItemsEntries.forEach(([key, value]) => {
+		if (value) {
+			flexibilityItemsObj[key] = value;
+		}
+	});
+
+	items.push({
+		category: "FLEXIBILITY",
+		name: "유연성 평가",
+		details: {
+			flexibilityItems: flexibilityItemsObj,
+		},
+	});
 }
 ```
 
 ### 2. 체성분 조건 수정 (264-281줄)
 
 **현재 코드**:
+
 ```typescript
 // 5. 체성분
-if (
-  formData.muscleMass &&
-  formData.fatMass &&
-  formData.bodyFatPercentage
-) {
-  items.push({
-    category: "BODY",
-    name: "인바디",
-    value: formData.bodyWeightInput || formData.bodyWeight,
-    unit: "kg",
-    details: {
-      muscleMass: formData.muscleMass,
-      fatMass: formData.fatMass,
-      bodyFatPercentage: formData.bodyFatPercentage,
-    },
-  });
+if (formData.muscleMass && formData.fatMass && formData.bodyFatPercentage) {
+	items.push({
+		category: "BODY",
+		name: "인바디",
+		value: formData.bodyWeightInput || formData.bodyWeight,
+		unit: "kg",
+		details: {
+			muscleMass: formData.muscleMass,
+			fatMass: formData.fatMass,
+			bodyFatPercentage: formData.bodyFatPercentage,
+		},
+	});
 }
 ```
 
 **수정 후**:
+
 ```typescript
 // 5. 체성분
 // muscleMass와 bodyFatPercentage만 있으면 추가 (fatMass는 선택)
-if (
-  formData.muscleMass &&
-  formData.bodyFatPercentage
-) {
-  items.push({
-    category: "BODY",
-    name: "인바디",
-    value: formData.bodyWeightInput || formData.bodyWeight,
-    unit: "kg",
-    details: {
-      muscleMass: formData.muscleMass,
-      ...(formData.fatMass && { fatMass: formData.fatMass }), // fatMass는 선택 사항
-      bodyFatPercentage: formData.bodyFatPercentage,
-    },
-  });
+if (formData.muscleMass && formData.bodyFatPercentage) {
+	items.push({
+		category: "BODY",
+		name: "인바디",
+		value: formData.bodyWeightInput || formData.bodyWeight,
+		unit: "kg",
+		details: {
+			muscleMass: formData.muscleMass,
+			...(formData.fatMass && { fatMass: formData.fatMass }), // fatMass는 선택 사항
+			bodyFatPercentage: formData.bodyFatPercentage,
+		},
+	});
 }
 ```
 
 ### 3. FLEXIBILITY 필터링 제거 (325-328줄)
 
 **현재 코드**:
+
 ```typescript
 // FLEXIBILITY 항목 제외 (백엔드 enum 미지원)
-const itemsWithoutFlexibility = cleanedItems.filter(
-  (item) => item.category !== "FLEXIBILITY"
-);
+const itemsWithoutFlexibility = cleanedItems.filter((item) => item.category !== "FLEXIBILITY");
 
 // 요청 데이터 구성: undefined 값 제외
 requestData = {
-  assessmentType: "INITIAL",
-  assessedAt: formData.assessedAt,
-  ...(formData.bodyWeight !== undefined &&
-    formData.bodyWeight !== null &&
-    !isNaN(formData.bodyWeight) && { bodyWeight: formData.bodyWeight }),
-  ...(formData.condition && { condition: formData.condition }),
-  ...(formData.trainerComment?.trim() && {
-    trainerComment: formData.trainerComment.trim(),
-  }),
-  items: itemsWithoutFlexibility, // FLEXIBILITY 제외된 항목들 (빈 배열도 허용)
+	assessmentType: "INITIAL",
+	assessedAt: formData.assessedAt,
+	...(formData.bodyWeight !== undefined && formData.bodyWeight !== null && !isNaN(formData.bodyWeight) && { bodyWeight: formData.bodyWeight }),
+	...(formData.condition && { condition: formData.condition }),
+	...(formData.trainerComment?.trim() && {
+		trainerComment: formData.trainerComment.trim(),
+	}),
+	items: itemsWithoutFlexibility, // FLEXIBILITY 제외된 항목들 (빈 배열도 허용)
 };
 ```
 
 **수정 후**:
+
 ```typescript
 // 요청 데이터 구성: undefined 값 제외
 requestData = {
-  assessmentType: "INITIAL",
-  assessedAt: formData.assessedAt,
-  ...(formData.bodyWeight !== undefined &&
-    formData.bodyWeight !== null &&
-    !isNaN(formData.bodyWeight) && { bodyWeight: formData.bodyWeight }),
-  ...(formData.condition && { condition: formData.condition }),
-  ...(formData.trainerComment?.trim() && {
-    trainerComment: formData.trainerComment.trim(),
-  }),
-  items: cleanedItems, // 모든 항목 포함 (유연성 포함)
+	assessmentType: "INITIAL",
+	assessedAt: formData.assessedAt,
+	...(formData.bodyWeight !== undefined && formData.bodyWeight !== null && !isNaN(formData.bodyWeight) && { bodyWeight: formData.bodyWeight }),
+	...(formData.condition && { condition: formData.condition }),
+	...(formData.trainerComment?.trim() && {
+		trainerComment: formData.trainerComment.trim(),
+	}),
+	items: cleanedItems, // 모든 항목 포함 (유연성 포함)
 };
 ```
 
@@ -131,6 +122,7 @@ requestData = {
 ### 백엔드 로직 분석 결과
 
 **백엔드 체성분 점수 계산 (`src/common/utils/grade-score-converter.ts`)**:
+
 - **필수 필드**: `bodyFatPercentage`, `muscleMass`, `age`, `gender`
 - **선택 필드**: `fatMass`, `bodyWeight`
 - **점수 계산**: `bodyFatPercentage`와 `muscleMassPercentage`만 사용
@@ -143,51 +135,84 @@ requestData = {
 ```typescript
 // 골격근량과 체지방량이 입력되면 체지방률 자동 계산
 useEffect(() => {
-  if (
-    formData.bodyWeightInput !== undefined &&
-    formData.bodyWeightInput !== null &&
-    !isNaN(formData.bodyWeightInput) &&
-    formData.bodyWeightInput > 0 &&
-    formData.fatMass !== undefined &&
-    formData.fatMass !== null &&
-    !isNaN(formData.fatMass) &&
-    formData.fatMass >= 0
-  ) {
-    const bodyFatPercentage =
-      (formData.fatMass / formData.bodyWeightInput) * 100;
-    setFormData((prev) => ({
-      ...prev,
-      bodyFatPercentage: parseFloat(bodyFatPercentage.toFixed(1)),
-    }));
-  }
+	if (
+		formData.bodyWeightInput !== undefined &&
+		formData.bodyWeightInput !== null &&
+		!isNaN(formData.bodyWeightInput) &&
+		formData.bodyWeightInput > 0 &&
+		formData.fatMass !== undefined &&
+		formData.fatMass !== null &&
+		!isNaN(formData.fatMass) &&
+		formData.fatMass >= 0
+	) {
+		const bodyFatPercentage = (formData.fatMass / formData.bodyWeightInput) * 100;
+		setFormData((prev) => ({
+			...prev,
+			bodyFatPercentage: parseFloat(bodyFatPercentage.toFixed(1)),
+		}));
+	}
 }, [formData.bodyWeightInput, formData.fatMass]);
 ```
 
 ### 결론
 
 1. **`fatMass`는 선택 사항**입니다.
-   - 백엔드 점수 계산에 사용되지 않음
-   - 프론트엔드에서 `bodyFatPercentage` 자동 계산에만 사용됨
+    - 백엔드 점수 계산에 사용되지 않음
+    - 프론트엔드에서 `bodyFatPercentage` 자동 계산에만 사용됨
 
 2. **`bodyFatPercentage`는 필수**입니다.
-   - 백엔드 점수 계산에 필수
-   - 사용자가 직접 입력하거나, `fatMass`와 `bodyWeightInput`으로 자동 계산 가능
+    - 백엔드 점수 계산에 필수
+    - 사용자가 직접 입력하거나, `fatMass`와 `bodyWeightInput`으로 자동 계산 가능
 
 3. **권장 사항**:
-   - 사용자가 `fatMass`를 입력하면 자동으로 `bodyFatPercentage` 계산 (현재 로직 유지)
-   - 사용자가 직접 `bodyFatPercentage`를 입력할 수도 있어야 함
-   - 최종적으로는 `muscleMass`와 `bodyFatPercentage`만 백엔드로 전송
+    - 사용자가 `fatMass`를 입력하면 자동으로 `bodyFatPercentage` 계산 (현재 로직 유지)
+    - 사용자가 직접 `bodyFatPercentage`를 입력할 수도 있어야 함
+    - 최종적으로는 `muscleMass`와 `bodyFatPercentage`만 백엔드로 전송
 
 ## 수정 파일
 
 - `front/Gym-admin/app/dashboard/members/[id]/assessment/new/page.tsx`
-  - 262줄: 유연성 항목 추가 로직 추가
-  - 264-281줄: 체성분 조건 수정 (fatMass 필수 제거)
-  - 325-328줄: FLEXIBILITY 필터링 제거
+    - 262줄: 유연성 항목 추가 로직 추가
+    - 264-281줄: 체성분 조건 수정 (fatMass 필수 제거)
+    - 325-328줄: FLEXIBILITY 필터링 제거
+
+## ⚠️ 중요: 데이터베이스 enum 타입 업데이트 필요
+
+프론트엔드 수정 전에 **반드시 데이터베이스의 category enum 타입에 FLEXIBILITY를 추가**해야 합니다.
+
+### DB 마이그레이션 실행 방법
+
+**방법 1: 자동 감지 스크립트 사용 (권장)**
+
+1. `database/add_flexibility_direct.sql` 파일을 DBeaver에서 실행
+2. STEP 1에서 enum 타입 이름 확인
+3. STEP 3에서 `ALTER TYPE [확인된_타입_이름] ADD VALUE 'FLEXIBILITY';` 실행
+    - ⚠️ 주의: 이 명령은 **개별적으로 실행**해야 합니다 (다른 쿼리와 함께 실행하지 마세요)
+4. STEP 4에서 확인
+
+**방법 2: 수동 확인**
+
+1. `database/find_and_add_flexibility_enum.sql` 파일 실행
+2. 1단계에서 enum 타입 이름 확인
+3. 3단계에서 `ALTER TYPE [확인된_타입_이름] ADD VALUE 'FLEXIBILITY';` 실행
+
+**확인 방법**:
+
+- `database/check_flexibility_enum.sql` 파일 실행
+- 또는 `database/add_flexibility_direct.sql`의 STEP 4 실행
+
+**에러 예시**:
+
+```
+invalid input value for enum category_type: "FLEXIBILITY"
+```
+
+이 에러는 DB enum 타입에 FLEXIBILITY가 없어서 발생합니다.
 
 ## 테스트 확인 사항
 
-1. 유연성 항목을 최소 1개 이상 선택했을 때 items 배열에 포함되는지
-2. 체성분에서 `muscleMass`와 `bodyFatPercentage`만 입력해도 items 배열에 포함되는지
-3. `fatMass` 없이도 체성분 항목이 전송되는지
-4. DB의 `assessment_items` 테이블에서 `category = 'FLEXIBILITY'`와 `category = 'BODY'` 항목이 정상적으로 저장되는지
+1. **DB 마이그레이션 확인**: category enum에 FLEXIBILITY가 추가되었는지 확인
+2. 유연성 항목을 최소 1개 이상 선택했을 때 items 배열에 포함되는지
+3. 체성분에서 `muscleMass`와 `bodyFatPercentage`만 입력해도 items 배열에 포함되는지
+4. `fatMass` 없이도 체성분 항목이 전송되는지
+5. DB의 `assessment_items` 테이블에서 `category = 'FLEXIBILITY'`와 `category = 'BODY'` 항목이 정상적으로 저장되는지
