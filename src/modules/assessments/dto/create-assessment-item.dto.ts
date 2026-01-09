@@ -39,7 +39,14 @@ export class CreateAssessmentItemDto {
 	unit?: string;
 
 	@ApiPropertyOptional({
-		description: '평가 항목 상세 정보 (등급, 관찰 포인트, 대체 항목 정보 등)',
+		description: '평가 항목 상세 정보 (등급, 관찰 포인트, 대체 항목 정보 등). 카테고리별로 필요한 필드가 다릅니다.\n\n' +
+			'**하체 근력 (STRENGTH)**: `grade` 필수 (A, B, C, D-1, D-2)\n' +
+			'**심폐 지구력 (CARDIO)**: `grade` 필수 (A, B, C, IMPOSSIBLE), B 선택 시 `recoverySpeed` 권장 (["fast"] 또는 ["slow"])\n' +
+			'**근지구력 (ENDURANCE)**: `grade` 필수 (A, B, C, IMPOSSIBLE)\n' +
+			'**유연성 (FLEXIBILITY)**: `flexibilityItems` 필수 (최소 1개 항목)\n' +
+			'**체성분 (BODY)**: `muscleMass`, `fatMass`, `bodyFatPercentage` 필수 (회원의 age, gender는 백엔드에서 자동 조회)\n' +
+			'**안정성 (STABILITY)**: `ohsa`, `pain` 필수\n\n' +
+			'⚠️ 주의: `internalScore`는 백엔드에서 자동 계산되므로 입력하지 마세요.',
 		example: {
 			grade: 'A',
 			internalScore: 80,

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { AssessmentCategoryScore } from '../../entities/assessment-category-score.entity';
@@ -32,6 +32,8 @@ interface AssessmentItemDetails {
 
 @Injectable()
 export class GradeScoreConverter {
+	private readonly logger = new Logger(GradeScoreConverter.name);
+
 	constructor(
 		@InjectRepository(AssessmentCategoryScore)
 		private categoryScoreRepository: Repository<AssessmentCategoryScore>,
@@ -83,7 +85,10 @@ export class GradeScoreConverter {
 	 */
 	private convertStrengthScore(details: AssessmentItemDetails): number | null {
 		const grade = details.grade;
-		if (!grade) return null;
+		if (!grade) {
+			this.logger.warn('하체 근력 점수 계산 실패: grade가 없습니다.');
+			return null;
+		}
 
 		const scoreMap: Record<string, number> = {
 			A: 80,
@@ -93,7 +98,13 @@ export class GradeScoreConverter {
 			'D-2': 20,
 		};
 
-		return scoreMap[grade] ?? null;
+		const score = scoreMap[grade];
+		if (score === undefined) {
+			this.logger.warn(`하체 근력 점수 계산 실패: 알 수 없는 등급 '${grade}'. 허용된 등급: A, B, C, D-1, D-2`);
+			return null;
+		}
+
+		return score;
 	}
 
 	/**
@@ -102,7 +113,10 @@ export class GradeScoreConverter {
 	 */
 	private convertCardioScore(details: AssessmentItemDetails): number | null {
 		const grade = details.grade;
-		if (!grade) return null;
+		if (!grade) {
+			this.logger.warn('심폐 지구력 점수 계산 실패: grade가 없습니다.');
+			return null;
+		}
 
 		// B 등급인 경우 회복 속도 조건 확인
 		if (grade === 'B') {
@@ -122,7 +136,13 @@ export class GradeScoreConverter {
 			IMPOSSIBLE: 20,
 		};
 
-		return scoreMap[grade] ?? null;
+		const score = scoreMap[grade];
+		if (score === undefined) {
+			this.logger.warn(`심폐 지구력 점수 계산 실패: 알 수 없는 등급 '${grade}'. 허용된 등급: A, B, C, IMPOSSIBLE`);
+			return null;
+		}
+
+		return score;
 	}
 
 	/**
@@ -131,7 +151,10 @@ export class GradeScoreConverter {
 	 */
 	private convertEnduranceScore(details: AssessmentItemDetails): number | null {
 		const grade = details.grade;
-		if (!grade) return null;
+		if (!grade) {
+			this.logger.warn('근지구력 점수 계산 실패: grade가 없습니다.');
+			return null;
+		}
 
 		const scoreMap: Record<string, number> = {
 			A: 80,
@@ -140,7 +163,13 @@ export class GradeScoreConverter {
 			IMPOSSIBLE: 20,
 		};
 
-		return scoreMap[grade] ?? null;
+		const score = scoreMap[grade];
+		if (score === undefined) {
+			this.logger.warn(`근지구력 점수 계산 실패: 알 수 없는 등급 '${grade}'. 허용된 등급: A, B, C, IMPOSSIBLE`);
+			return null;
+		}
+
+		return score;
 	}
 
 	/**
@@ -152,50 +181,71 @@ export class GradeScoreConverter {
 	): Promise<number | null> {
 		const flexibilityItems = details.flexibilityItems;
 		if (!flexibilityItems) {
+			this.logger.warn('유연성 점수 계산 실패: flexibilityItems가 없습니다.');
 			return null;
 		}
 
-		// 가중치 조회
-		const weights = await this.flexibilityWeightRepository.find({
-			where: { isActive: true },
-		});
+		try {
+			// 가중치 조회
+			const weights = await this.flexibilityWeightRepository.find({
+				where: { isActive: true },
+			});
 
-		if (weights.length === 0) {
+			if (weights.length === 0) {
+				this.logger.warn('유연성 점수 계산 실패: 가중치 데이터가 없습니다. (flexibility_item_weights 테이블 확인 필요)');
+				return null;
+			}
+
+			// 가중치 맵 생성
+			const weightMap = new Map<string, number>();
+			weights.forEach((w) => {
+				weightMap.set(w.itemName, Number(w.weight));
+			});
+
+			// 가중치 합 계산 (C 등급만 가중치 합산)
+			let weightSum = 0;
+			Object.entries(flexibilityItems).forEach(([itemName, grade]) => {
+				if (grade === 'C') {
+					const weight = weightMap.get(itemName);
+					if (weight === undefined) {
+						this.logger.warn(`유연성 항목 가중치 없음: ${itemName}. flexibility_item_weights 테이블 확인 필요.`);
+					}
+					weightSum += weight || 0;
+				}
+			});
+
+			// 등급 판정 기준 조회 (범위 매칭)
+			const thresholds = await this.flexibilityThresholdRepository.find({
+				where: { isActive: true },
+				order: { weightSumMin: 'ASC' },
+			});
+
+			if (thresholds.length === 0) {
+				this.logger.warn('유연성 점수 계산 실패: 등급 판정 기준 데이터가 없습니다. (flexibility_grade_thresholds 테이블 확인 필요)');
+				// 매칭되지 않으면 기본값 (가중치 합 0 = C 없음 = 안정적)
+				return weightSum === 0 ? 80 : null;
+			}
+
+			// 가중치 합에 해당하는 등급 판정 기준 찾기
+			for (const threshold of thresholds) {
+				const min = Number(threshold.weightSumMin);
+				const max = Number(threshold.weightSumMax);
+				if (weightSum >= min && weightSum <= max) {
+					return threshold.internalScore;
+				}
+			}
+
+			// 매칭되지 않으면 기본값 (가중치 합 0 = C 없음 = 안정적)
+			if (weightSum === 0) {
+				return 80;
+			}
+
+			this.logger.warn(`유연성 점수 계산 실패: 가중치 합 ${weightSum}에 해당하는 등급 판정 기준을 찾을 수 없습니다.`);
+			return null;
+		} catch (error) {
+			this.logger.error(`유연성 점수 계산 중 오류 발생: ${error.message}`, error.stack);
 			return null;
 		}
-
-		// 가중치 맵 생성
-		const weightMap = new Map<string, number>();
-		weights.forEach((w) => {
-			weightMap.set(w.itemName, Number(w.weight));
-		});
-
-		// 가중치 합 계산 (C 등급만 가중치 합산)
-		let weightSum = 0;
-		Object.entries(flexibilityItems).forEach(([itemName, grade]) => {
-			if (grade === 'C') {
-				const weight = weightMap.get(itemName) || 0;
-				weightSum += weight;
-			}
-		});
-
-		// 등급 판정 기준 조회 (범위 매칭)
-		const thresholds = await this.flexibilityThresholdRepository.find({
-			where: { isActive: true },
-			order: { weightSumMin: 'ASC' },
-		});
-
-		// 가중치 합에 해당하는 등급 판정 기준 찾기
-		for (const threshold of thresholds) {
-			const min = Number(threshold.weightSumMin);
-			const max = Number(threshold.weightSumMax);
-			if (weightSum >= min && weightSum <= max) {
-				return threshold.internalScore;
-			}
-		}
-
-		// 매칭되지 않으면 기본값 (가중치 합 0 = C 없음 = 안정적)
-		return weightSum === 0 ? 80 : null;
 	}
 
 	/**
@@ -214,37 +264,53 @@ export class GradeScoreConverter {
 		details: AssessmentItemDetails,
 	): Promise<number | null> {
 		const { bodyFatPercentage, muscleMass, fatMass, bodyWeight, age, gender } = details;
-		if (
-			bodyFatPercentage === undefined ||
-			muscleMass === undefined ||
-			age === undefined ||
-			!gender
-		) {
+		
+		// 필수 필드 검증
+		if (bodyFatPercentage === undefined || bodyFatPercentage === null) {
+			this.logger.warn('체성분 점수 계산 실패: bodyFatPercentage가 없습니다.');
+			return null;
+		}
+		if (muscleMass === undefined || muscleMass === null) {
+			this.logger.warn('체성분 점수 계산 실패: muscleMass가 없습니다.');
+			return null;
+		}
+		if (age === undefined || age === null) {
+			this.logger.warn('체성분 점수 계산 실패: age가 없습니다.');
+			return null;
+		}
+		if (!gender) {
+			this.logger.warn('체성분 점수 계산 실패: gender가 없습니다.');
 			return null;
 		}
 
-		// 연령대별 기준 조회
-		const standards = await this.bodyCompositionStandardRepository.find({
-			where: {
-				gender: gender as 'MALE' | 'FEMALE',
-				isActive: true,
-			},
-			order: { ageMin: 'ASC' },
-		});
+		try {
+			// 연령대별 기준 조회
+			const standards = await this.bodyCompositionStandardRepository.find({
+				where: {
+					gender: gender as 'MALE' | 'FEMALE',
+					isActive: true,
+				},
+				order: { ageMin: 'ASC' },
+			});
 
-		// 회원의 나이에 해당하는 기준 찾기
-		let standard: BodyCompositionStandard | null = null;
-		for (const s of standards) {
-			if (age >= Number(s.ageMin) && age <= Number(s.ageMax)) {
-				standard = s;
-				break;
+			if (standards.length === 0) {
+				this.logger.warn(`체성분 점수 계산 실패: ${gender}의 연령대별 기준 데이터가 없습니다. (body_composition_standards 테이블 확인 필요)`);
+				return null;
 			}
-		}
 
-		if (!standard) {
-			// 기준이 없으면 null 반환
-			return null;
-		}
+			// 회원의 나이에 해당하는 기준 찾기
+			let standard: BodyCompositionStandard | null = null;
+			for (const s of standards) {
+				if (age >= Number(s.ageMin) && age <= Number(s.ageMax)) {
+					standard = s;
+					break;
+				}
+			}
+
+			if (!standard) {
+				this.logger.warn(`체성분 점수 계산 실패: ${age}세 ${gender}에 해당하는 연령대별 기준을 찾을 수 없습니다.`);
+				return null;
+			}
 
 		const bodyFatMin = Number(standard.bodyFatPercentageMin);
 		const bodyFatMax = Number(standard.bodyFatPercentageMax);
@@ -281,6 +347,10 @@ export class GradeScoreConverter {
 		else {
 			return 20; // 둘 다 불리
 		}
+		} catch (error) {
+			this.logger.error(`체성분 점수 계산 중 오류 발생: ${error.message}`, error.stack);
+			return null;
+		}
 	}
 
 	/**
@@ -289,7 +359,13 @@ export class GradeScoreConverter {
 	 */
 	private convertStabilityScore(details: AssessmentItemDetails): number | null {
 		const { ohsa, pain } = details;
-		if (!ohsa || !pain) {
+		
+		if (!ohsa) {
+			this.logger.warn('안정성 점수 계산 실패: ohsa가 없습니다.');
+			return null;
+		}
+		if (!pain) {
+			this.logger.warn('안정성 점수 계산 실패: pain이 없습니다.');
 			return null;
 		}
 
@@ -306,6 +382,7 @@ export class GradeScoreConverter {
 		// OHSA C + 통증 있음: 20
 		if (ohsa === 'C' && pain === 'present') return 20;
 
+		this.logger.warn(`안정성 점수 계산 실패: 알 수 없는 조합. OHSA: '${ohsa}', Pain: '${pain}'. 허용된 값: OHSA(A, B, C), Pain(none, present)`);
 		return null;
 	}
 }

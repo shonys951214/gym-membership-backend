@@ -3063,7 +3063,7 @@ interface AssessmentItemResponse {
 
 **작성일**: 2024-01-XX  
 **최종 수정일**: 2024-01-XX  
-**상태**: DB 구조 완료, 계산 로직 구현 예정
+**상태**: ✅ DB 구조 완료, 계산 로직 구현 완료
 
 **✅ DB 마이그레이션 완료 상태** (2024-01-XX):
 
@@ -3072,3 +3072,15 @@ interface AssessmentItemResponse {
 - 체성분 평가 기준표, 등급 상수, 카테고리별 점수 매핑, 유연성 가중치 테이블 생성 완료
 - Entity 및 DTO 수정 완료 (`AssessmentItem`, `CreateAssessmentItemDto`)
 - Service 로직 수정 완료 (`assessments.service.ts`에서 `details` 저장 처리)
+
+**✅ 계산 로직 구현 완료 상태** (2024-01-XX):
+
+- `GradeScoreConverter` 서비스 구현 완료
+    - 하체 근력: 등급(A, B, C, D-1, D-2) → 점수 변환 완료
+    - 심폐 지구력: 등급 + 회복 속도 조건 반영 완료
+    - 근지구력: 등급(A, B, C, IMPOSSIBLE) → 점수 변환 완료
+    - 유연성: 가중치 합산 로직 구현 완료 (DB 조회 포함)
+    - 체성분: 연령대/성별 기준 판정 로직 구현 완료 (DB 조회 포함)
+    - 안정성: OHSA + 통증 조합 로직 구현 완료
+- `assessments.service.ts`에 점수 계산 로직 통합 완료
+- `점수계산표.md` 문서 작성 완료
