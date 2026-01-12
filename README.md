@@ -18,16 +18,34 @@ src/
 │   ├── user.entity.ts
 │   ├── member.entity.ts
 │   ├── assessment.entity.ts
+│   ├── assessment-item.entity.ts
+│   ├── ability-snapshot.entity.ts
+│   ├── injury-history.entity.ts
+│   └── ...
+├── entities-generated/    # 자동 생성된 엔티티 (레거시)
 │   └── ...
 ├── modules/               # NestJS 모듈
 │   ├── auth/              # 인증 모듈
-│   ├── members/            # 회원 관리 모듈
+│   ├── members/           # 회원 관리 모듈
 │   ├── assessments/       # 평가 시스템 모듈
-│   └── analytics/          # 분석 모듈
+│   ├── analytics/         # 분석 모듈
+│   └── insights/          # 인사이트 모듈
 ├── common/                # 공통 유틸리티
-│   ├── utils/              # 유틸리티 함수
-│   └── data-source.ts      # TypeORM 설정
-└── main.ts                 # 애플리케이션 진입점
+│   ├── decorators/        # 커스텀 데코레이터
+│   ├── enums/             # 열거형 타입
+│   ├── exceptions/        # 예외 처리
+│   ├── filters/           # 예외 필터
+│   ├── guards/            # 가드 (인증/인가)
+│   ├── interceptors/      # 인터셉터
+│   ├── utils/             # 유틸리티 함수
+│   └── data-source.ts     # TypeORM 설정
+├── config/                # 설정 파일
+│   ├── cors.config.ts
+│   └── database.config.ts
+├── app.module.ts          # 루트 모듈
+├── app.controller.ts      # 루트 컨트롤러
+├── app.service.ts         # 루트 서비스
+└── main.ts                # 애플리케이션 진입점
 ```
 
 ## 설치 및 실행
@@ -127,17 +145,51 @@ Swagger UI에서:
 - `PUT /api/members/:memberId/assessments/:id` - 평가 수정
 - `GET /api/members/:memberId/assessments/abilities/latest` - 최신 능력치
 - `GET /api/members/:memberId/assessments/abilities/compare` - 능력치 비교
+- `GET /api/members/:id/abilities/hexagon` - 레이더 차트 데이터 (초기 vs 현재 비교 지원)
 
 ### 분석
 
 - `GET /api/analytics/averages` - 전체 평균
 - `GET /api/analytics/comparison/:memberId` - 개별 vs 평균 비교
 
+### 인사이트 (관리자/트레이너 전용)
+
+- `GET /api/insights/hexagon` - 운영 능력치 헥사곤 조회
+- `GET /api/insights/weekly-summary` - 주간 요약 조회
+- `GET /api/insights/risk-members` - 위험 신호 회원 조회
+
 ### 부상 관리
 
 - `GET /api/members/:memberId/injuries` - 부상 이력 조회
 - `POST /api/members/:memberId/injuries` - 부상 이력 등록
 - `POST /api/members/:memberId/injuries/:id/restrictions` - 평가 제한 설정
+
+## 현재 구현 상태
+
+### ✅ 구현 완료
+
+- 기본 인증 시스템 (JWT 기반, 카카오 소셜 로그인 지원)
+- 회원 관리 CRUD
+- 평가 시스템 기본 기능
+- 능력치 계산 및 스냅샷 생성
+- 레이더 차트 데이터 API (초기 vs 현재 비교 포함)
+- 전체 평균 및 개별 비교 분석
+- 인사이트 모듈 (운영 헥사곤, 주간 요약, 위험 신호 회원)
+- 부상 이력 관리
+- 운동 기록 및 루틴 관리
+- PT 세션 관리
+- Swagger API 문서
+
+### 🔄 추후 구현 예정
+
+다음 기능들은 추후 단계적으로 구현될 예정입니다:
+
+- **Phase 2**: 초기 평가 세부항목 정의 및 검증 로직
+- **Phase 3**: 정기 평가 세부항목 및 환산 메커니즘
+- **Phase 4**: 그래프 차트 및 상세 시각화 API
+- **Phase 5**: 평가 기준표 및 등급 체계
+
+자세한 내용은 [docs/BACKEND_FUTURE_DEVELOPMENT.md](docs/BACKEND_FUTURE_DEVELOPMENT.md)를 참고하세요.
 
 ## 데이터베이스 마이그레이션
 

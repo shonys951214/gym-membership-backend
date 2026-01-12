@@ -23,7 +23,8 @@ import { Exercise } from '../../entities/exercise.entity';
 import { StrengthStandard } from '../../entities/strength-standard.entity';
 import { OneRepMaxCalculator, OneRepMaxFormula } from '../../common/utils/one-rep-max-calculator';
 import { RelativeStrengthCalculator } from '../../common/utils/relative-strength-calculator';
-import { StrengthLevelEvaluator } from '../../common/utils/strength-level-evaluator';
+// TODO: 추후 구현 예정 - Strength Level 판정 기능
+// import { StrengthLevelEvaluator } from '../../common/utils/strength-level-evaluator';
 
 @Injectable()
 export class AssessmentsService {
@@ -247,8 +248,10 @@ export class AssessmentsService {
           score = itemDto.value;
         }
 
+        // TODO: 추후 구현 예정 - Strength Level 계산
         // STRENGTH 카테고리이고 무게와 횟수가 있으면 Strength Level 계산
         let detailsWithStrength = itemDto.details || {};
+        /*
         if (
           itemDto.category === Category.STRENGTH &&
           itemDto.value !== undefined &&
@@ -277,6 +280,7 @@ export class AssessmentsService {
             );
           }
         }
+        */
 
         const assessmentItem = this.assessmentItemRepository.create({
           assessmentId: savedAssessment.id,
@@ -378,8 +382,10 @@ export class AssessmentsService {
             score = itemDto.value;
           }
 
+          // TODO: 추후 구현 예정 - Strength Level 계산
           // STRENGTH 카테고리이고 무게와 횟수가 있으면 Strength Level 계산
           let detailsWithStrength = itemDto.details || {};
+          /*
           if (
             itemDto.category === Category.STRENGTH &&
             itemDto.value !== undefined &&
@@ -408,6 +414,7 @@ export class AssessmentsService {
               );
             }
           }
+          */
 
           const assessmentItem = this.assessmentItemRepository.create({
             assessmentId: id,
@@ -654,12 +661,14 @@ export class AssessmentsService {
 
 	/**
 	 * AssessmentItem의 Strength Level 계산
+	 * TODO: 추후 구현 예정 - Strength Level 판정 기능
 	 * @param exerciseName 운동명
 	 * @param value 측정값 (무게)
 	 * @param unit 단위 (kg, lb 등)
 	 * @param member 회원 정보
 	 * @returns Strength Level 정보
 	 */
+	/*
 	private async calculateStrengthLevelForAssessment(
 		exerciseName: string,
 		value: number,
@@ -726,5 +735,6 @@ export class AssessmentsService {
 			relativeStrength: relativeStrengthResult.relativeStrength,
 		};
 	}
+	*/
 }
 

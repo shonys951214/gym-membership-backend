@@ -1,8 +1,13 @@
+// TODO: 추후 구현 예정 - Strength Level 판정 기능
+// DB에는 strength_standards 테이블이 추가되어 있으나, API 구현은 추후 진행 예정
+// 관련 빌드 오류 방지를 위해 파일 전체를 주석처리함
+
+/*
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { StrengthStandard } from '../../entities/strength-standard.entity';
-import { Gender, StrengthLevel, StrengthLevelOrder } from '../common/enums';
+import { Gender, StrengthLevel, StrengthLevelOrder } from '../../common/enums';
 
 /**
  * Strength Level 판정 결과
@@ -154,4 +159,4 @@ export class StrengthLevelEvaluator {
 
 		return this.evaluate(exercise.id, oneRepMax, bodyWeight, gender);
 	}
-}
+*/

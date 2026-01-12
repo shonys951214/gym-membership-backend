@@ -20,5 +20,6 @@ export * from './grade-score-converter';
 export * from './one-rep-max-calculator';
 export * from './unit-converter';
 export * from './relative-strength-calculator';
-export * from './strength-level-evaluator';
+// TODO: 추후 구현 예정 - Strength Level 판정 기능
+// export * from './strength-level-evaluator';
 

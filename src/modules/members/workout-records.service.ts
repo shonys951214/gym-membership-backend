@@ -19,7 +19,8 @@ import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 import { RepositoryHelper } from '../../common/utils/repository-helper';
 import { OneRepMaxCalculator, OneRepMaxFormula } from '../../common/utils/one-rep-max-calculator';
 import { RelativeStrengthCalculator } from '../../common/utils/relative-strength-calculator';
-import { StrengthLevelEvaluator } from '../../common/utils/strength-level-evaluator';
+// TODO: 추후 구현 예정 - Strength Level 판정 기능
+// import { StrengthLevelEvaluator } from '../../common/utils/strength-level-evaluator';
 import { StrengthStandard } from '../../entities/strength-standard.entity';
 
 @Injectable()
@@ -153,8 +154,8 @@ export class WorkoutRecordsService {
 
 		const record = this.workoutRecordRepository.create(recordData);
 
-		// Strength Level 자동 계산
-		await this.calculateStrengthLevel(record, memberId);
+		// TODO: 추후 구현 예정 - Strength Level 자동 계산
+		// await this.calculateStrengthLevel(record, memberId);
 
 		return this.workoutRecordRepository.save(record);
 	}
@@ -172,8 +173,8 @@ export class WorkoutRecordsService {
 		// 볼륨 재계산 (weight, reps, sets 중 하나라도 변경되었을 수 있음)
 		record.volume = WorkoutHelper.calculateVolume(record.weight, record.reps, record.sets);
 
-		// Strength Level 재계산 (weight, reps가 변경되었을 수 있음)
-		await this.calculateStrengthLevel(record, memberId);
+		// TODO: 추후 구현 예정 - Strength Level 재계산 (weight, reps가 변경되었을 수 있음)
+		// await this.calculateStrengthLevel(record, memberId);
 
 		return this.workoutRecordRepository.save(record);
 	}
@@ -478,9 +479,11 @@ export class WorkoutRecordsService {
 
 	/**
 	 * Strength Level 자동 계산 및 저장
+	 * TODO: 추후 구현 예정 - Strength Level 판정 기능
 	 * @param record WorkoutRecord 엔티티
 	 * @param memberId 회원 ID
 	 */
+	/*
 	private async calculateStrengthLevel(record: WorkoutRecord, memberId: string): Promise<void> {
 		try {
 			// 회원 정보 조회 (체중, 성별 필요)
@@ -553,13 +556,16 @@ export class WorkoutRecordsService {
 			);
 		}
 	}
+	*/
 
 	/**
 	 * 회원의 운동별 Strength Level 변화 추적
+	 * TODO: 추후 구현 예정 - Strength Level 변화 추적 기능
 	 * @param memberId 회원 ID
 	 * @param exerciseName 운동명 (선택적, 없으면 모든 운동)
 	 * @returns Strength Level 변화 추적 결과
 	 */
+	/*
 	async getStrengthProgress(
 		memberId: string,
 		exerciseName?: string,
@@ -607,5 +613,6 @@ export class WorkoutRecordsService {
 			current,
 		};
 	}
+	*/
 }
 

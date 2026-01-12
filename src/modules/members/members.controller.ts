@@ -435,6 +435,8 @@ export class MembersController {
 		return ApiResponseHelper.success(null, '운동 기록 삭제 성공');
 	}
 
+	// TODO: 추후 구현 예정 - Strength Level 조회 API
+	/*
 	@Get(':id/workout-records/:recordId/strength-level')
 	@ApiOperation({ summary: '운동 기록의 Strength Level 조회', description: '특정 운동 기록의 Strength Level 정보를 조회합니다.' })
 	@ApiResponse({ status: 200, description: 'Strength Level 조회 성공' })
@@ -460,7 +462,10 @@ export class MembersController {
 
 		return ApiResponseHelper.success(response, 'Strength Level 조회 성공');
 	}
+	*/
 
+	// TODO: 추후 구현 예정 - Strength Level 변화 추적 API
+	/*
 	@Get(':id/strength-progress')
 	@ApiOperation({ summary: '회원의 운동별 Strength Level 변화 추적', description: '회원의 운동별 Strength Level 변화를 조회합니다.' })
 	@ApiResponse({ status: 200, description: 'Strength Level 변화 추적 조회 성공' })
@@ -471,6 +476,7 @@ export class MembersController {
 		const progress = await this.workoutRecordsService.getStrengthProgress(id, exerciseName);
 		return ApiResponseHelper.success(progress, 'Strength Level 변화 추적 조회 성공');
 	}
+	*/
 
 	// 1차피드백: PT 세션
 	@Get(':id/pt-sessions')
