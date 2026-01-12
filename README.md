@@ -164,6 +164,21 @@ Swagger UI에서:
 - `POST /api/members/:memberId/injuries` - 부상 이력 등록
 - `POST /api/members/:memberId/injuries/:id/restrictions` - 평가 제한 설정
 
+### 운동 기록
+
+- `GET /api/members/:id/workout-records` - 운동 기록 목록
+- `POST /api/members/:id/workout-records` - 운동 기록 생성
+- `PUT /api/members/:id/workout-records/:recordId` - 운동 기록 수정
+- `DELETE /api/members/:id/workout-records/:recordId` - 운동 기록 삭제
+- `GET /api/members/:id/workout-records/volume` - 부위별 볼륨 조회
+- `GET /api/members/:id/workout-records/volume-analysis` - 부위별 볼륨 분석
+- `GET /api/members/:id/workout-records/calendar` - 운동 캘린더 조회
+
+### 🔄 추후 구현 예정 API
+
+- `GET /api/members/:id/workout-records/:recordId/strength-level` - 운동 기록의 Strength Level 조회 (추후 구현 예정)
+- `GET /api/members/:id/strength-progress` - 회원의 운동별 Strength Level 변화 추적 (추후 구현 예정)
+
 ## 현재 구현 상태
 
 ### ✅ 구현 완료
@@ -188,6 +203,13 @@ Swagger UI에서:
 - **Phase 3**: 정기 평가 세부항목 및 환산 메커니즘
 - **Phase 4**: 그래프 차트 및 상세 시각화 API
 - **Phase 5**: 평가 기준표 및 등급 체계
+- **Phase 6**: Strength Level 판정 기능
+    - Strength Level 자동 계산 및 판정 (StrengthLevel.com 기준)
+    - 평가 항목 생성 시 Strength Level 자동 계산
+    - 운동 기록 생성/수정 시 Strength Level 자동 계산
+    - Strength Level 조회 API (`GET /api/members/:id/workout-records/:recordId/strength-level`)
+    - Strength Level 변화 추적 API (`GET /api/members/:id/strength-progress`)
+    - **참고**: DB에는 `strength_standards` 테이블이 이미 추가되어 있으며, API 구현은 추후 진행 예정입니다.
 
 자세한 내용은 [docs/BACKEND_FUTURE_DEVELOPMENT.md](docs/BACKEND_FUTURE_DEVELOPMENT.md)를 참고하세요.
 
