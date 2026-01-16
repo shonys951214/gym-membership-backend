@@ -50,7 +50,21 @@ src/
 
 ## 설치 및 실행
 
-### 1. 의존성 설치
+### 사전 요구사항
+
+- **Node.js** v18 이상
+- **npm** 또는 **yarn**
+- **PostgreSQL** 12 이상
+- **Python** 3.x (선택사항 - 스크립트 실행 시만 필요)
+
+### 1. 저장소 클론
+
+```bash
+git clone <repository-url>
+cd gym-membership-backend
+```
+
+### 2. 의존성 설치
 
 ```bash
 npm install
@@ -58,29 +72,59 @@ npm install
 
 ### 2. 환경 변수 설정
 
-`.env` 파일을 생성하고 다음 내용을 입력하세요:
+`.env.example` 파일을 복사하여 `.env` 파일을 생성하세요:
 
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/gym_membership
-PORT=3001
-NODE_ENV=development
-JWT_SECRET=your-secret-key-change-this-in-production
-JWT_EXPIRES_IN=7d
+```bash
+# Windows
+copy .env.example .env
 
-# 프론트엔드 URL (선택사항 - 여러 개는 쉼표로 구분)
-# FRONTEND_URL=https://gym-admin-mu.vercel.app,http://localhost:3000
-
-# 카카오 로그인 (선택사항)
-# KAKAO_CLIENT_ID=your-kakao-client-id
-# KAKAO_CLIENT_SECRET=your-kakao-client-secret
-# KAKAO_REDIRECT_URI=http://localhost:3001/api/auth/kakao/callback
+# Linux/Mac
+cp .env.example .env
 ```
 
-### 3. 데이터베이스 설정
+그 다음 `.env` 파일을 열어 실제 환경에 맞게 값을 수정하세요:
+
+- `DATABASE_URL`: PostgreSQL 데이터베이스 연결 문자열
+- `JWT_SECRET`: 강력한 랜덤 문자열 (최소 32자)
+- `FRONTEND_URL`: 프론트엔드 URL (여러 개는 쉼표로 구분)
+
+자세한 설정은 `.env.example` 파일을 참고하세요.
+
+### 4. 데이터베이스 설정
 
 PostgreSQL 데이터베이스를 생성하고 `.env` 파일의 `DATABASE_URL`을 설정하세요.
 
-### 4. 애플리케이션 실행
+**로컬 PostgreSQL 사용 시:**
+```bash
+# PostgreSQL 설치 후 데이터베이스 생성
+createdb gym_membership
+
+# 또는 psql 사용
+psql -U postgres
+CREATE DATABASE gym_membership;
+```
+
+**스키마 생성:**
+```bash
+# database/create_full_schema.sql 파일 실행
+psql -U postgres -d gym_membership -f database/create_full_schema.sql
+```
+
+**초기 데이터 추가 (선택사항):**
+```bash
+# 운동 데이터 추가
+psql -U postgres -d gym_membership -f database/seeds/exercises_seed.sql
+
+# Strength Level 기준 데이터 추가 (빅3 운동)
+psql -U postgres -d gym_membership -f database/bench_press_male_standards.sql
+psql -U postgres -d gym_membership -f database/bench_press_female_standards.sql
+psql -U postgres -d gym_membership -f database/squat_male_standards.sql
+psql -U postgres -d gym_membership -f database/squat_female_standards.sql
+psql -U postgres -d gym_membership -f database/deadlift_male_standards.sql
+psql -U postgres -d gym_membership -f database/deadlift_female_standards.sql
+```
+
+### 5. 애플리케이션 실행
 
 ```bash
 # 개발 모드

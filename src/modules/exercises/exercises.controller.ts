@@ -33,7 +33,7 @@ export class ExercisesController {
 	async findAll(@Query() query: GetExercisesDto) {
 		const exercises = await this.exercisesService.findAll(query);
 		return ApiResponseHelper.success(
-			{ exercises, total: exercises.length },
+			{ exercises: exercises.data, total: exercises.total },
 			'운동 목록 조회 성공',
 		);
 	}

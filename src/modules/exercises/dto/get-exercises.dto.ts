@@ -1,4 +1,5 @@
-import { IsOptional, IsEnum, IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsEnum, IsString, IsUUID, IsBoolean, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ExerciseCategory } from '../../../entities/exercise.entity';
 
@@ -40,4 +41,38 @@ export class GetExercisesDto {
 	@IsOptional()
 	@IsString()
 	includeRecent?: string; // 'true' or 'false' 문자열로 받음
+
+	@ApiPropertyOptional({
+		description: '활성화 여부 필터',
+		example: true,
+		default: true,
+	})
+	@IsOptional()
+	@IsBoolean()
+	@Type(() => Boolean)
+	isActive?: boolean;
+
+	@ApiPropertyOptional({
+		description: '페이지 번호',
+		example: 1,
+		default: 1,
+		minimum: 1,
+	})
+	@IsOptional()
+	@Type(() => Number)
+	@IsInt()
+	@Min(1)
+	page?: number;
+
+	@ApiPropertyOptional({
+		description: '페이지당 항목 수',
+		example: 50,
+		default: 50,
+		minimum: 1,
+	})
+	@IsOptional()
+	@Type(() => Number)
+	@IsInt()
+	@Min(1)
+	limit?: number;
 }
