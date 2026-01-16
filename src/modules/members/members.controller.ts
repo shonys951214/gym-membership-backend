@@ -603,71 +603,75 @@ export class MembersController {
 		return ApiResponseHelper.success(session, 'PT 세션 상세 조회 성공');
 	}
 
-	@Post(':id/pt-sessions')
-	@HttpCode(HttpStatus.CREATED)
-	@UseGuards(JwtRolesGuard)
-	@Roles(Role.ADMIN, Role.TRAINER)
-	@ApiOperation({
-		summary: 'PT 세션 생성',
-		description: '새로운 PT 세션을 생성합니다. 세션 번호는 자동 계산되고, completedSessions가 자동 증가합니다. (ADMIN, TRAINER 권한 필요)',
-	})
-	@ApiResponse({ status: 201, description: 'PT 세션 생성 성공' })
-	async createPTSession(
-		@Param('id') id: string,
-		@Body() createDto: CreatePTSessionDto,
-	) {
-		const session = await this.ptSessionsService.create(id, createDto);
-		return ApiResponseHelper.success(session, 'PT 세션 생성 성공');
-	}
+	// TODO: 배포 후 수정 필요 - TypeScript 오류 수정 필요
+	// @Post(':id/pt-sessions')
+	// @HttpCode(HttpStatus.CREATED)
+	// @UseGuards(JwtRolesGuard)
+	// @Roles(Role.ADMIN, Role.TRAINER)
+	// @ApiOperation({
+	// 	summary: 'PT 세션 생성',
+	// 	description: '새로운 PT 세션을 생성합니다. 세션 번호는 자동 계산되고, completedSessions가 자동 증가합니다. (ADMIN, TRAINER 권한 필요)',
+	// })
+	// @ApiResponse({ status: 201, description: 'PT 세션 생성 성공' })
+	// async createPTSession(
+	// 	@Param('id') id: string,
+	// 	@Body() createDto: CreatePTSessionDto,
+	// ) {
+	// 	const session = await this.ptSessionsService.create(id, createDto);
+	// 	return ApiResponseHelper.success(session, 'PT 세션 생성 성공');
+	// }
 
-	@Put(':id/pt-sessions/:sessionId')
-	@UseGuards(JwtRolesGuard)
-	@Roles(Role.ADMIN, Role.TRAINER)
-	@ApiOperation({
-		summary: 'PT 세션 수정',
-		description: '기존 PT 세션을 수정합니다. (ADMIN, TRAINER 권한 필요)',
-	})
-	@ApiResponse({ status: 200, description: 'PT 세션 수정 성공' })
-	async updatePTSession(
-		@Param('id') id: string,
-		@Param('sessionId') sessionId: string,
-		@Body() updateDto: UpdatePTSessionDto,
-	) {
-		const session = await this.ptSessionsService.update(sessionId, id, updateDto);
-		return ApiResponseHelper.success(session, 'PT 세션 수정 성공');
-	}
+	// TODO: 배포 후 수정 필요 - TypeScript 오류 수정 필요
+	// @Put(':id/pt-sessions/:sessionId')
+	// @UseGuards(JwtRolesGuard)
+	// @Roles(Role.ADMIN, Role.TRAINER)
+	// @ApiOperation({
+	// 	summary: 'PT 세션 수정',
+	// 	description: '기존 PT 세션을 수정합니다. (ADMIN, TRAINER 권한 필요)',
+	// })
+	// @ApiResponse({ status: 200, description: 'PT 세션 수정 성공' })
+	// async updatePTSession(
+	// 	@Param('id') id: string,
+	// 	@Param('sessionId') sessionId: string,
+	// 	@Body() updateDto: UpdatePTSessionDto,
+	// ) {
+	// 	const session = await this.ptSessionsService.update(sessionId, id, updateDto);
+	// 	return ApiResponseHelper.success(session, 'PT 세션 수정 성공');
+	// }
 
-	@Delete(':id/pt-sessions/:sessionId')
-	@UseGuards(JwtRolesGuard)
-	@Roles(Role.ADMIN, Role.TRAINER)
-	@ApiOperation({
-		summary: 'PT 세션 삭제',
-		description: 'PT 세션을 삭제합니다. completedSessions가 자동 감소합니다. (ADMIN, TRAINER 권한 필요)',
-	})
-	@ApiResponse({ status: 200, description: 'PT 세션 삭제 성공' })
-	async deletePTSession(
-		@Param('id') id: string,
-		@Param('sessionId') sessionId: string,
-	) {
-		await this.ptSessionsService.remove(sessionId, id);
-		return ApiResponseHelper.success(null, 'PT 세션 삭제 성공');
-	}
+	// TODO: 배포 후 수정 필요 - TypeScript 오류 수정 필요
+	// @Delete(':id/pt-sessions/:sessionId')
+	// @UseGuards(JwtRolesGuard)
+	// @Roles(Role.ADMIN, Role.TRAINER)
+	// @ApiOperation({
+	// 	summary: 'PT 세션 삭제',
+	// 	description: 'PT 세션을 삭제합니다. completedSessions가 자동 감소합니다. (ADMIN, TRAINER 권한 필요)',
+	// })
+	// @ApiResponse({ status: 200, description: 'PT 세션 삭제 성공' })
+	// async deletePTSession(
+	// 	@Param('id') id: string,
+	// 	@Param('sessionId') sessionId: string,
+	// ) {
+	// 	await this.ptSessionsService.remove(sessionId, id);
+	// 	return ApiResponseHelper.success(null, 'PT 세션 삭제 성공');
+	// }
 
+	// TODO: 배포 후 수정 필요 - TypeScript 오류 수정 필요
 	// 1차피드백: 추천 운동 루틴
-	@Get(':id/workout-routines/today')
-	@ApiOperation({
-		summary: '오늘의 운동 루틴 조회',
-		description: '회원의 오늘 날짜 운동 루틴을 조회합니다.',
-	})
-	@ApiResponse({ status: 200, description: '오늘의 운동 루틴 조회 성공' })
-	@ApiResponse({ status: 404, description: '오늘의 운동 루틴이 없습니다' })
-	async getTodayRoutine(@Param('id') id: string) {
-		const routine = await this.workoutRoutinesService.findToday(id);
-		if (!routine) {
-			return ApiResponseHelper.success(null, '오늘의 운동 루틴이 없습니다.');
-		}
-		return ApiResponseHelper.success(routine, '오늘의 운동 루틴 조회 성공');
-	}
+	// @Get(':id/workout-routines/today')
+	// @ApiOperation({
+	// 	summary: '오늘의 운동 루틴 조회',
+	// 	description: '회원의 오늘 날짜 운동 루틴을 조회합니다.',
+	// })
+	// @ApiResponse({ status: 200, description: '오늘의 운동 루틴 조회 성공' })
+	// @ApiResponse({ status: 404, description: '오늘의 운동 루틴이 없습니다' })
+	// async getTodayRoutine(@Param('id') id: string) {
+	// 	const routine = await this.workoutRoutinesService.findToday(id);
+	// 	if (!routine) {
+	// 		return ApiResponseHelper.success(null, '오늘의 운동 루틴이 없습니다.');
+	// 	}
+	// 	return ApiResponseHelper.success(routine, '오늘의 운동 루틴 조회 성공');
+	// }
 
 	@Get(':id/workout-routines')
 	@ApiOperation({
