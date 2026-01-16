@@ -19,8 +19,7 @@ import { EntityUpdateHelper } from '../../common/utils/entity-update-helper';
 import { RepositoryHelper } from '../../common/utils/repository-helper';
 import { OneRepMaxCalculator, OneRepMaxFormula } from '../../common/utils/one-rep-max-calculator';
 import { RelativeStrengthCalculator } from '../../common/utils/relative-strength-calculator';
-// TODO: 추후 구현 예정 - Strength Level 판정 기능
-// import { StrengthLevelEvaluator } from '../../common/utils/strength-level-evaluator';
+import { StrengthLevelEvaluator } from '../../common/utils/strength-level-evaluator';
 import { StrengthStandard } from '../../entities/strength-standard.entity';
 
 @Injectable()
@@ -42,6 +41,7 @@ export class WorkoutRecordsService {
 		private ptSessionsService: PTSessionsService,
 		@Inject(forwardRef(() => MembersService))
 		private membersService: MembersService,
+		private strengthLevelEvaluator: StrengthLevelEvaluator,
 	) {}
 
 	async findAll(
@@ -154,8 +154,8 @@ export class WorkoutRecordsService {
 
 		const record = this.workoutRecordRepository.create(recordData);
 
-		// TODO: 추후 구현 예정 - Strength Level 자동 계산
-		// await this.calculateStrengthLevel(record, memberId);
+		// Strength Level 자동 계산
+		await this.calculateStrengthLevel(record, memberId);
 
 		return this.workoutRecordRepository.save(record);
 	}
@@ -173,8 +173,8 @@ export class WorkoutRecordsService {
 		// 볼륨 재계산 (weight, reps, sets 중 하나라도 변경되었을 수 있음)
 		record.volume = WorkoutHelper.calculateVolume(record.weight, record.reps, record.sets);
 
-		// TODO: 추후 구현 예정 - Strength Level 재계산 (weight, reps가 변경되었을 수 있음)
-		// await this.calculateStrengthLevel(record, memberId);
+		// Strength Level 재계산 (weight, reps가 변경되었을 수 있음)
+		await this.calculateStrengthLevel(record, memberId);
 
 		return this.workoutRecordRepository.save(record);
 	}
@@ -479,11 +479,9 @@ export class WorkoutRecordsService {
 
 	/**
 	 * Strength Level 자동 계산 및 저장
-	 * TODO: 추후 구현 예정 - Strength Level 판정 기능
 	 * @param record WorkoutRecord 엔티티
 	 * @param memberId 회원 ID
 	 */
-	/*
 	private async calculateStrengthLevel(record: WorkoutRecord, memberId: string): Promise<void> {
 		try {
 			// 회원 정보 조회 (체중, 성별 필요)
@@ -504,7 +502,7 @@ export class WorkoutRecordsService {
 				return;
 			}
 
-			// 운동명으로 Exercise 찾기
+			// 운동명으로 Exercise 찾기 (한글명/영문명 모두 지원)
 			const exercise = await this.exerciseRepository.findOne({
 				where: [
 					{ name: record.exerciseName },
@@ -533,12 +531,12 @@ export class WorkoutRecordsService {
 			);
 
 			// Strength Level 판정
-			const evaluator = new StrengthLevelEvaluator(this.strengthStandardRepository);
-			const evaluationResult = await evaluator.evaluate(
+			const evaluationResult = await this.strengthLevelEvaluator.evaluate(
 				exercise.id,
 				oneRepMaxResult.oneRepMax,
 				member.weight,
 				member.gender,
+				member.age, // 나이 파라미터 추가
 			);
 
 			// 결과 저장
@@ -556,16 +554,552 @@ export class WorkoutRecordsService {
 			);
 		}
 	}
-	*/
+
+	/**
+	 * 3대 운동 및 대체 운동 매핑
+	 */
+	private readonly majorExerciseMapping = {
+		벤치프레스: ['벤치프레스', 'Bench Press', '인클라인 벤치프레스', 'Incline Bench Press', '덤벨 프레스', 'Dumbbell Press'],
+		스쿼트: ['스쿼트', 'Squat', '레그프레스', 'Leg Press', '스플릿 스쿼트', 'Split Squat'],
+		데드리프트: ['데드리프트', 'Deadlift', '루마니안 데드리프트', 'Romanian Deadlift', '스모 데드리프트', 'Sumo Deadlift'],
+	};
+
+	/**
+	 * 주요 운동(3대 운동)의 1RM 조회
+	 * 3대 운동 기록이 없을 경우 대체 운동 자동 탐색
+	 */
+	async getMajorExercisesOneRepMax(memberId: string): Promise<{
+		exercises: Array<{
+			exerciseName: string;
+			exerciseNameEn: string;
+			category: 'UPPER' | 'LOWER' | 'FULL_BODY';
+			isSubstitute: boolean;
+			current: {
+				oneRepMax: number;
+				relativeStrength: number;
+				strengthLevel: string | null;
+				workoutDate: string;
+			} | null;
+			best: {
+				oneRepMax: number;
+				relativeStrength: number;
+				strengthLevel: string | null;
+				workoutDate: string;
+			} | null;
+			history: Array<{
+				oneRepMax: number;
+				workoutDate: string;
+				strengthLevel: string | null;
+			}>;
+		}>;
+	}> {
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+
+		const member = await this.memberRepository.findOne({
+			where: { id: memberId },
+		});
+
+		if (!member || !member.weight) {
+			throw ApiExceptions.badRequest('회원의 체중 정보가 필요합니다.');
+		}
+
+		const result: Array<{
+			exerciseName: string;
+			exerciseNameEn: string;
+			category: 'UPPER' | 'LOWER' | 'FULL_BODY';
+			isSubstitute: boolean;
+			current: {
+				oneRepMax: number;
+				relativeStrength: number;
+				strengthLevel: string | null;
+				workoutDate: string;
+			} | null;
+			best: {
+				oneRepMax: number;
+				relativeStrength: number;
+				strengthLevel: string | null;
+				workoutDate: string;
+			} | null;
+			history: Array<{
+				oneRepMax: number;
+				workoutDate: string;
+				strengthLevel: string | null;
+			}>;
+		}> = [];
+
+		// 3대 운동 순회
+		for (const [majorExerciseName, exerciseNames] of Object.entries(this.majorExerciseMapping)) {
+			// 원본 운동부터 대체 운동까지 순서대로 조회
+			let matchedExercise: { name: string; nameEn: string; category: string } | null = null;
+			let isSubstitute = false;
+
+			// 원본 운동 기록 조회
+			for (let i = 0; i < exerciseNames.length; i++) {
+				const exerciseName = exerciseNames[i];
+				const records = await this.workoutRecordRepository.find({
+					where: {
+						memberId,
+						exerciseName,
+					},
+					order: {
+						workoutDate: 'DESC',
+						createdAt: 'DESC',
+					},
+				});
+
+				if (records.length > 0) {
+					// 운동 정보 조회
+					const exercise = await this.exerciseRepository.findOne({
+						where: [
+							{ name: exerciseName },
+							{ nameEn: exerciseName },
+						],
+					});
+
+					if (exercise) {
+						matchedExercise = {
+							name: exercise.name,
+							nameEn: exercise.nameEn,
+							category: exercise.category,
+						};
+						isSubstitute = i > 0; // 첫 번째가 아니면 대체 운동
+						break;
+					}
+				}
+			}
+
+			// 기록이 없으면 다음 운동으로
+			if (!matchedExercise) {
+				continue;
+			}
+
+			// 해당 운동의 모든 기록 조회
+			const allRecords = await this.workoutRecordRepository.find({
+				where: {
+					memberId,
+					exerciseName: matchedExercise.name,
+				},
+				order: {
+					workoutDate: 'ASC',
+					createdAt: 'ASC',
+				},
+			});
+
+			// 1RM이 있는 기록만 필터링
+			const recordsWith1RM = allRecords.filter((r) => r.oneRepMax !== null && r.oneRepMax !== undefined);
+
+			if (recordsWith1RM.length === 0) {
+				continue;
+			}
+
+			// 히스토리 생성
+			const history = recordsWith1RM.map((record) => ({
+				oneRepMax: record.oneRepMax!,
+				workoutDate: record.workoutDate.toISOString().split('T')[0],
+				strengthLevel: record.strengthLevel || null,
+			}));
+
+			// 현재 (가장 최근) 기록
+			const currentRecord = recordsWith1RM[recordsWith1RM.length - 1];
+			const current = currentRecord
+				? {
+						oneRepMax: currentRecord.oneRepMax!,
+						relativeStrength: currentRecord.relativeStrength || (currentRecord.oneRepMax! / member.weight) * 100,
+						strengthLevel: currentRecord.strengthLevel || null,
+						workoutDate: currentRecord.workoutDate.toISOString().split('T')[0],
+					}
+				: null;
+
+			// 최고 기록
+			const bestRecord = recordsWith1RM.reduce((best, record) => {
+				if (!best || (record.oneRepMax! > best.oneRepMax!)) {
+					return record;
+				}
+				return best;
+			}, null as typeof recordsWith1RM[0] | null);
+
+			const best = bestRecord
+				? {
+						oneRepMax: bestRecord.oneRepMax!,
+						relativeStrength: bestRecord.relativeStrength || (bestRecord.oneRepMax! / member.weight) * 100,
+						strengthLevel: bestRecord.strengthLevel || null,
+						workoutDate: bestRecord.workoutDate.toISOString().split('T')[0],
+					}
+				: null;
+
+			result.push({
+				exerciseName: matchedExercise.name,
+				exerciseNameEn: matchedExercise.nameEn,
+				category: matchedExercise.category as 'UPPER' | 'LOWER' | 'FULL_BODY',
+				isSubstitute,
+				current,
+				best,
+				history,
+			});
+		}
+
+		return { exercises: result };
+	}
+
+	/**
+	 * 1RM 추정 API (플랜 Phase 3)
+	 * 빅3 운동의 최신/최고 1RM과 히스토리 조회
+	 */
+	async getOneRepMaxEstimate(memberId: string): Promise<{
+		exercises: Array<{
+			exerciseName: string;
+			latest: {
+				oneRepMax: number;
+				strengthLevel: string | null;
+				workoutDate: string;
+			} | null;
+			max: {
+				oneRepMax: number;
+				workoutDate: string;
+			} | null;
+			history: Array<{
+				oneRepMax: number;
+				workoutDate: string;
+				strengthLevel?: string | null;
+			}>;
+		}>;
+	}> {
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+
+		const majorExercises = ['벤치프레스', 'Bench Press', '스쿼트', 'Squat', '데드리프트', 'Deadlift'];
+		const exerciseNames = [
+			['벤치프레스', 'Bench Press'],
+			['스쿼트', 'Squat'],
+			['데드리프트', 'Deadlift'],
+		];
+
+		const result: Array<{
+			exerciseName: string;
+			latest: {
+				oneRepMax: number;
+				strengthLevel: string | null;
+				workoutDate: string;
+			} | null;
+			max: {
+				oneRepMax: number;
+				workoutDate: string;
+			} | null;
+			history: Array<{
+				oneRepMax: number;
+				workoutDate: string;
+				strengthLevel?: string | null;
+			}>;
+		}> = [];
+
+		for (const [primaryName, englishName] of exerciseNames) {
+			// 한글명과 영문명 모두 검색
+			const records = await this.workoutRecordRepository.find({
+				where: [
+					{ memberId, exerciseName: primaryName },
+					{ memberId, exerciseName: englishName },
+				],
+				order: {
+					workoutDate: 'ASC',
+					createdAt: 'ASC',
+				},
+			});
+
+			// 1RM이 있는 기록만 필터링
+			const recordsWith1RM = records.filter(
+				(r) => r.oneRepMax !== null && r.oneRepMax !== undefined,
+			);
+
+			if (recordsWith1RM.length === 0) {
+				result.push({
+					exerciseName: primaryName,
+					latest: null,
+					max: null,
+					history: [],
+				});
+				continue;
+			}
+
+			// 히스토리 생성
+			const history = recordsWith1RM.map((record) => ({
+				oneRepMax: record.oneRepMax!,
+				workoutDate: record.workoutDate.toISOString().split('T')[0],
+				strengthLevel: record.strengthLevel || null,
+			}));
+
+			// 최신 1RM (가장 최근 기록)
+			const latestRecord = recordsWith1RM[recordsWith1RM.length - 1];
+			const latest = latestRecord
+				? {
+						oneRepMax: latestRecord.oneRepMax!,
+						strengthLevel: latestRecord.strengthLevel || null,
+						workoutDate: latestRecord.workoutDate.toISOString().split('T')[0],
+					}
+				: null;
+
+			// 최고 1RM
+			const maxRecord = recordsWith1RM.reduce((best, record) => {
+				if (!best || record.oneRepMax! > best.oneRepMax!) {
+					return record;
+				}
+				return best;
+			}, null as typeof recordsWith1RM[0] | null);
+
+			const max = maxRecord
+				? {
+						oneRepMax: maxRecord.oneRepMax!,
+						workoutDate: maxRecord.workoutDate.toISOString().split('T')[0],
+					}
+				: null;
+
+			result.push({
+				exerciseName: primaryName,
+				latest,
+				max,
+				history,
+			});
+		}
+
+		return { exercises: result };
+	}
+
+	/**
+	 * 1RM 추세 그래프 API (플랜 Phase 4)
+	 */
+	async getOneRepMaxTrend(
+		memberId: string,
+		exerciseName?: string,
+		startDate?: string,
+		endDate?: string,
+	): Promise<{
+		exerciseName?: string;
+		trend: Array<{
+			date: string;
+			oneRepMax: number;
+			strengthLevel?: string | null;
+		}>;
+	}> {
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+
+		const where: any = { memberId };
+		if (exerciseName) {
+			where.exerciseName = exerciseName;
+		}
+
+		const queryBuilder = this.workoutRecordRepository.createQueryBuilder('record');
+		QueryBuilderHelper.addMemberIdFilter(queryBuilder, 'record.memberId', memberId);
+		if (exerciseName) {
+			queryBuilder.andWhere(
+				'(record.exerciseName = :exerciseName OR record.exerciseName = :exerciseNameEn)',
+				{ exerciseName, exerciseNameEn: exerciseName },
+			);
+		}
+		QueryBuilderHelper.addDateRangeFilter(queryBuilder, 'record.workoutDate', startDate, endDate);
+		queryBuilder.orderBy('record.workoutDate', 'ASC');
+		queryBuilder.addOrderBy('record.createdAt', 'ASC');
+
+		const records = await queryBuilder.getMany();
+
+		// 날짜별로 그룹화하여 최고 1RM 반환
+		const dateMap = new Map<string, { oneRepMax: number; strengthLevel?: string | null }>();
+
+		records.forEach((record) => {
+			if (record.oneRepMax !== null && record.oneRepMax !== undefined) {
+				const date = record.workoutDate.toISOString().split('T')[0];
+				const existing = dateMap.get(date);
+				if (!existing || record.oneRepMax > existing.oneRepMax) {
+					dateMap.set(date, {
+						oneRepMax: record.oneRepMax,
+						strengthLevel: record.strengthLevel || null,
+					});
+				}
+			}
+		});
+
+		const trend = Array.from(dateMap.entries()).map(([date, info]) => ({
+			date,
+			oneRepMax: info.oneRepMax,
+			strengthLevel: info.strengthLevel,
+		}));
+
+		return {
+			exerciseName: exerciseName || undefined,
+			trend,
+		};
+	}
+
+	/**
+	 * 볼륨 추세 그래프 API (플랜 Phase 5)
+	 */
+	async getVolumeTrend(
+		memberId: string,
+		startDate?: string,
+		endDate?: string,
+		bodyPart?: string,
+	): Promise<{
+		trend: Array<{
+			date: string;
+			totalVolume: number;
+			bodyPartVolumes?: Array<{ bodyPart: string; volume: number }>;
+		}>;
+	}> {
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+
+		const queryBuilder = this.workoutRecordRepository.createQueryBuilder('record');
+		QueryBuilderHelper.addMemberIdFilter(queryBuilder, 'record.memberId', memberId);
+		QueryBuilderHelper.addDateRangeFilter(queryBuilder, 'record.workoutDate', startDate, endDate);
+
+		if (bodyPart) {
+			queryBuilder.andWhere('record.bodyPart = :bodyPart', { bodyPart });
+		}
+
+		queryBuilder.orderBy('record.workoutDate', 'ASC');
+		queryBuilder.addOrderBy('record.createdAt', 'ASC');
+
+		const records = await queryBuilder.getMany();
+
+		// 날짜별로 그룹화
+		const dateMap = new Map<
+			string,
+			{ totalVolume: number; bodyPartMap: Map<string, number> }
+		>();
+
+		records.forEach((record) => {
+			const date = record.workoutDate.toISOString().split('T')[0];
+			const existing = dateMap.get(date) || {
+				totalVolume: 0,
+				bodyPartMap: new Map<string, number>(),
+			};
+
+			existing.totalVolume += record.volume;
+			const bodyPartVolume = existing.bodyPartMap.get(record.bodyPart) || 0;
+			existing.bodyPartMap.set(record.bodyPart, bodyPartVolume + record.volume);
+
+			dateMap.set(date, existing);
+		});
+
+		const trend = Array.from(dateMap.entries()).map(([date, data]) => {
+			const result: {
+				date: string;
+				totalVolume: number;
+				bodyPartVolumes?: Array<{ bodyPart: string; volume: number }>;
+			} = {
+				date,
+				totalVolume: Math.round(data.totalVolume * 100) / 100,
+			};
+
+			// bodyPart가 지정되지 않았으면 부위별 볼륨도 포함
+			if (!bodyPart && data.bodyPartMap.size > 0) {
+				result.bodyPartVolumes = Array.from(data.bodyPartMap.entries()).map(
+					([bodyPart, volume]) => ({
+						bodyPart,
+						volume: Math.round(volume * 100) / 100,
+					}),
+				);
+			}
+
+			return result;
+		});
+
+		return { trend };
+	}
+
+	/**
+	 * 운동 기록 추세 데이터 조회 (1RM 또는 볼륨)
+	 */
+	async getTrends(
+		memberId: string,
+		type: 'one_rm' | 'volume',
+		exerciseName?: string,
+		startDate?: string,
+		endDate?: string,
+	): Promise<{
+		type: 'one_rm' | 'volume';
+		exerciseName?: string;
+		data: Array<{
+			date: string;
+			value: number;
+			strengthLevel?: string | null;
+		}>;
+	}> {
+		await RepositoryHelper.ensureMemberExists(this.memberRepository, memberId, this.logger);
+
+		const where: any = { memberId };
+		if (exerciseName) {
+			where.exerciseName = exerciseName;
+		}
+
+		const queryBuilder = this.workoutRecordRepository.createQueryBuilder('record');
+		QueryBuilderHelper.addMemberIdFilter(queryBuilder, 'record.memberId', memberId);
+		if (exerciseName) {
+			queryBuilder.andWhere('record.exerciseName = :exerciseName', { exerciseName });
+		}
+		QueryBuilderHelper.addDateRangeFilter(queryBuilder, 'record.workoutDate', startDate, endDate);
+		queryBuilder.orderBy('record.workoutDate', 'ASC');
+		queryBuilder.addOrderBy('record.createdAt', 'ASC');
+
+		const records = await queryBuilder.getMany();
+
+		const data: Array<{
+			date: string;
+			value: number;
+			strengthLevel?: string | null;
+		}> = [];
+
+		if (type === 'one_rm') {
+			// 1RM 추세: 날짜별로 그룹화하고 가장 높은 1RM 사용
+			const dateMap = new Map<string, { value: number; strengthLevel?: string | null }>();
+
+			records.forEach((record) => {
+				if (record.oneRepMax !== null && record.oneRepMax !== undefined) {
+					const date = record.workoutDate.toISOString().split('T')[0];
+					const existing = dateMap.get(date);
+					if (!existing || record.oneRepMax > existing.value) {
+						dateMap.set(date, {
+							value: record.oneRepMax,
+							strengthLevel: record.strengthLevel || null,
+						});
+					}
+				}
+			});
+
+			data.push(
+				...Array.from(dateMap.entries()).map(([date, info]) => ({
+					date,
+					value: info.value,
+					strengthLevel: info.strengthLevel,
+				})),
+			);
+		} else {
+			// 볼륨 추세: 날짜별로 볼륨 합계
+			const dateMap = new Map<string, number>();
+
+			records.forEach((record) => {
+				const date = record.workoutDate.toISOString().split('T')[0];
+				const existing = dateMap.get(date) || 0;
+				dateMap.set(date, existing + record.volume);
+			});
+
+			data.push(
+				...Array.from(dateMap.entries()).map(([date, volume]) => ({
+					date,
+					value: Math.round(volume * 100) / 100,
+				})),
+			);
+		}
+
+		return {
+			type,
+			exerciseName: exerciseName || undefined,
+			data,
+		};
+	}
 
 	/**
 	 * 회원의 운동별 Strength Level 변화 추적
-	 * TODO: 추후 구현 예정 - Strength Level 변화 추적 기능
 	 * @param memberId 회원 ID
 	 * @param exerciseName 운동명 (선택적, 없으면 모든 운동)
 	 * @returns Strength Level 변화 추적 결과
 	 */
-	/*
 	async getStrengthProgress(
 		memberId: string,
 		exerciseName?: string,
@@ -613,6 +1147,5 @@ export class WorkoutRecordsService {
 			current,
 		};
 	}
-	*/
 }
 

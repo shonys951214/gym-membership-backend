@@ -11,6 +11,88 @@
 
 ## 이후 개발 사항 (우선순위 순)
 
+### 🟢 Phase 0: 운동 기본 데이터 준비 (NEW) ⭐
+
+**예상 작업 시간**: 1-2일  
+**영향도**: 낮음 (데이터 준비 단계)
+
+#### 작업 0-1: free-exercise-db 데이터 다운로드
+
+**작업 내용**:
+1. free-exercise-db 저장소 클론 또는 JSON 파일 다운로드
+2. 데이터 구조 확인
+
+**명령어**:
+```bash
+# 저장소 클론
+git clone https://github.com/yuhonas/free-exercise-db.git ../free-exercise-db
+
+# 또는 JSON 파일 직접 다운로드
+curl -o exercises.json https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json
+```
+
+#### 작업 0-2: 필요한 운동만 필터링하여 변환
+
+**파일**: `scripts/convert-free-exercise-db.ts` (이미 생성됨)
+
+**작업 내용**:
+1. 프로젝트에 필요한 운동만 필터링 (카테고리, 장비, 레벨 등)
+2. exercises 테이블 구조로 변환
+3. SQL 파일 생성
+
+**예시 명령어**:
+```bash
+# 상체 운동만 변환
+ts-node scripts/convert-free-exercise-db.ts --category=UPPER
+
+# 바벨과 덤벨 운동만 변환
+ts-node scripts/convert-free-exercise-db.ts --equipment=barbell,dumbbell
+
+# 초보자용 상체 운동만 변환
+ts-node scripts/convert-free-exercise-db.ts --category=UPPER --level=beginner
+```
+
+**또는 배치 스크립트 사용**:
+```bash
+bash scripts/generate-exercise-seeds.sh
+```
+
+#### 작업 0-3: exercises 테이블에 데이터 삽입
+
+**작업 내용**:
+1. 생성된 SQL 파일 확인
+2. 데이터베이스에 삽입
+3. 데이터 검증
+
+**명령어**:
+```sql
+\i database/seeds/free_exercise_db_seed.sql
+```
+
+**검증 쿼리**:
+```sql
+-- 전체 운동 개수 확인
+SELECT COUNT(*) FROM exercises;
+
+-- 카테고리별 개수
+SELECT category, COUNT(*) FROM exercises GROUP BY category;
+
+-- 부위별 개수
+SELECT body_part, COUNT(*) FROM exercises WHERE body_part IS NOT NULL GROUP BY body_part;
+```
+
+#### 작업 0-4: 운동 상세 가이드 문서 생성
+
+**파일**: `docs/EXERCISE_DETAIL_GUIDE.md` (신규)
+
+**작업 내용**:
+- 프론트엔드 개발자가 AI를 활용하여 API 작성 시 참고할 수 있는 운동 상세 정보 문서
+- 각 운동의 상세 정보, 사용 방법, 주의사항 등 포함
+
+**참고**: `docs/EXERCISE_DETAIL_GUIDE.md` 참고
+
+---
+
 ### 🔴 Phase 2: 초기 평가 세부항목 정의 (중요) ⭐⭐
 
 **예상 작업 시간**: 2-3주  
@@ -450,7 +532,90 @@ export class GradeCalculator {
 
 ---
 
+### 🔴 Phase 6: Strength Level 판정 기능 (중요) ⭐⭐⭐
+
+**예상 작업 시간**: 2-3주  
+**영향도**: 높음 (핵심 기능)
+
+#### 작업 6-1: Strength Level 기준 데이터 수집
+
+**작업 내용**:
+1. strengthlevel.com에서 기준 데이터 수집
+   - 수동 수집: `docs/MANUAL_DATA_COLLECTION_GUIDE.md` 참고
+   - 자동 수집: `scripts/scrape_strengthlevel.py` 사용 (Selenium 필요)
+2. `strength_standards` 테이블에 데이터 삽입
+3. 데이터 검증
+
+**참고 문서**:
+- `docs/MANUAL_DATA_COLLECTION_GUIDE.md` - 수동 수집 가이드
+- `docs/QUICK_START_GUIDE.md` - 빠른 시작 가이드
+- `scripts/scrape_strengthlevel.py` - 자동 수집 스크립트
+
+#### 작업 6-2: Strength Level 계산 로직 (이미 부분 구현됨)
+
+**파일**: `src/common/utils/strength-level-evaluator.ts` (이미 생성됨)
+
+**작업 내용**:
+- ✅ 1RM 계산 (이미 구현됨)
+- ✅ Strength Level 판정 (이미 구현됨)
+- ✅ 운동 기록 저장 시 자동 계산 (이미 구현됨)
+- ⏳ 예외 처리 개선
+- ⏳ 로깅 개선
+
+#### 작업 6-3: Strength Level API 엔드포인트 (일부 구현됨)
+
+**파일**: `src/modules/members/members.controller.ts`
+
+**작업 내용**:
+- ✅ 주요 운동 1RM 추정 API (이미 구현됨)
+- ✅ 1RM 추세 데이터 API (이미 구현됨)
+- ✅ 볼륨 추세 데이터 API (이미 구현됨)
+- ✅ Strength Level 변화 추적 API (이미 구현됨)
+- ⏳ 운동별 Strength Level 조회 API 개선
+- ⏳ 다음 레벨 목표 무게 계산 API
+
+**이미 구현된 엔드포인트**:
+```typescript
+GET /api/members/:id/one-rep-max-estimate
+GET /api/members/:id/workout-records/one-rep-max-trend
+GET /api/members/:id/workout-records/volume-trend
+GET /api/members/:id/strength-progress
+GET /api/members/:id/workout-routines/suggest-weight
+```
+
+#### 작업 6-4: 운동 루틴 무게 제안 기능 (이미 구현됨)
+
+**파일**: `src/modules/members/workout-routines.service.ts`
+
+**작업 내용**:
+- ✅ Strength Level 기반 무게 제안 (이미 구현됨)
+- ⏳ 루틴 생성 시 자동 무게 제안 옵션 추가
+
+#### 작업 6-5: 운동 목록 API 개선 (이미 구현됨)
+
+**파일**: `src/modules/exercises/exercises.service.ts`
+
+**작업 내용**:
+- ✅ 카테고리 필터링 (이미 구현됨)
+- ✅ 부위 필터링 (이미 구현됨)
+- ✅ 검색 기능 (이미 구현됨)
+- ✅ 최근 운동 우선 정렬 (이미 구현됨)
+- ✅ 페이징 지원 (이미 구현됨)
+
+**엔드포인트**:
+```typescript
+GET /api/exercises?category=UPPER&bodyPart=가슴&search=bench&page=1&limit=20
+```
+
+---
+
 ## 개발 우선순위 요약
+
+### 즉시 진행 (Phase 0)
+1. ✅ free-exercise-db 데이터 다운로드
+2. ✅ 필요한 운동만 필터링하여 변환
+3. ✅ exercises 테이블에 삽입
+4. ✅ 운동 상세 가이드 문서 생성
 
 ### 즉시 진행 (Phase 2)
 1. 초기 평가 항목 정의 (상수 파일)
@@ -464,6 +629,11 @@ export class GradeCalculator {
 3. ScoreCalculator 수정
 4. 정기 평가 항목 확장
 
+### 중기 진행 (Phase 6)
+1. Strength Level 기준 데이터 수집 (strengthlevel.com)
+2. Strength Level 계산 로직 개선
+3. Strength Level API 엔드포인트 개선
+
 ### 장기 진행 (Phase 4-5)
 1. 그래프 차트 데이터 API
 2. 등급 계산 로직
@@ -472,6 +642,27 @@ export class GradeCalculator {
 ---
 
 ## 각 Phase별 상세 작업 목록
+
+### Phase 0 상세 작업
+
+#### 백엔드 작업
+- [x] `scripts/convert-free-exercise-db.ts` 생성 (완료)
+- [x] `scripts/generate-exercise-seeds.sh` 생성 (완료)
+- [x] `docs/FREE_EXERCISE_DB_INTEGRATION.md` 생성 (완료)
+- [x] `docs/FREE_EXERCISE_DB_FILTERING.md` 생성 (완료)
+- [ ] free-exercise-db 데이터 다운로드
+- [ ] 필요한 운동만 필터링하여 변환
+- [ ] exercises 테이블에 데이터 삽입
+- [ ] 데이터 검증
+- [ ] `docs/EXERCISE_DETAIL_GUIDE.md` 생성
+
+#### 프론트엔드 작업 (프론트엔드 개발자)
+- [ ] 운동 선택 UI 구현 (카테고리, 부위 필터)
+- [ ] 운동 검색 기능 구현
+- [ ] 최근 운동 우선 정렬 UI
+- [ ] 운동 상세 정보 표시 (가이드 문서 참고)
+
+---
 
 ### Phase 2 상세 작업
 
@@ -549,12 +740,39 @@ export class GradeCalculator {
 
 ---
 
+### Phase 6 상세 작업
+
+#### 백엔드 작업
+- [x] `src/common/utils/strength-level-evaluator.ts` 생성 (완료)
+- [x] `src/common/utils/one-rep-max-calculator.ts` 생성 (완료)
+- [x] `src/common/utils/relative-strength-calculator.ts` 생성 (완료)
+- [x] `src/modules/members/workout-records.service.ts` - Strength Level 계산 통합 (완료)
+- [x] `src/modules/members/members.controller.ts` - Strength Level API 엔드포인트 (완료)
+- [x] `src/modules/exercises/exercises.service.ts` - 운동 목록 API (완료)
+- [ ] strengthlevel.com에서 기준 데이터 수집
+- [ ] `strength_standards` 테이블에 데이터 삽입
+- [ ] 데이터 검증
+- [ ] 예외 처리 개선
+- [ ] 로깅 개선
+
+#### 프론트엔드 작업 (프론트엔드 개발자)
+- [ ] Strength Level 배지 표시
+- [ ] 1RM 추정 모달/페이지 구현
+- [ ] Strength Level 변화 그래프 구현
+- [ ] 운동 기록 입력 시 Strength Level 표시
+- [ ] 루틴 생성 시 무게 제안 UI
+
+---
+
 ## 참고 문서
 
 - [ASSESSMENT_GUIDE.md](ASSESSMENT_GUIDE.md) - 평가 가이드 문서
 - [2차개발방향.md](2차개발방향.md) - 상세 개발 방향
-- [DEVELOPMENT_PRIORITY.md](DEVELOPMENT_PRIORITY.md) - 개발 우선순위
-- [ASSESSMENT_2LAYER_STRUCTURE.md](ASSESSMENT_2LAYER_STRUCTURE.md) - 2단계 평가 레이어 구조
+- [STRENGTH_LEVEL_API_GUIDE.md](STRENGTH_LEVEL_API_GUIDE.md) - Strength Level API 가이드
+- [FREE_EXERCISE_DB_INTEGRATION.md](FREE_EXERCISE_DB_INTEGRATION.md) - free-exercise-db 통합 가이드
+- [FREE_EXERCISE_DB_FILTERING.md](FREE_EXERCISE_DB_FILTERING.md) - free-exercise-db 필터링 가이드
+- [EXERCISE_DETAIL_GUIDE.md](EXERCISE_DETAIL_GUIDE.md) - 운동 상세 가이드 (프론트엔드 AI 활용용)
+- [MANUAL_DATA_COLLECTION_GUIDE.md](MANUAL_DATA_COLLECTION_GUIDE.md) - strengthlevel.com 수동 수집 가이드
 
 ---
 
@@ -579,10 +797,35 @@ export class GradeCalculator {
 
 ## 예상 일정
 
+- **Phase 0**: 1-2일
 - **Phase 2**: 2-3주
 - **Phase 3**: 3-4주
 - **Phase 4**: 2-3주
 - **Phase 5**: 2주 (선택적)
+- **Phase 6**: 2-3주 (일부 완료)
 
-**총 예상 기간**: 9-12주 (Phase 5 제외 시 7-10주)
+**총 예상 기간**: 10-15주 (Phase 5 제외 시 8-13주)
 
+---
+
+## 데이터 소스 정리
+
+### exercises 테이블 (운동 기본 정보)
+- **데이터 소스**: free-exercise-db
+- **용도**: 운동 목록 제공, 운동 선택 UI
+- **수집 방법**: 
+  - free-exercise-db JSON 파일 다운로드
+  - 변환 스크립트로 필터링 및 변환
+  - exercises 테이블에 삽입
+
+### strength_standards 테이블 (Strength Level 기준 데이터)
+- **데이터 소스**: strengthlevel.com
+- **용도**: 1RM 기반 레벨 판정 (BEGINNER, NOVICE, INTERMEDIATE, ADVANCED, ELITE)
+- **수집 방법**:
+  - 수동 수집: `docs/MANUAL_DATA_COLLECTION_GUIDE.md` 참고
+  - 자동 수집: `scripts/scrape_strengthlevel.py` 사용 (Selenium 필요)
+
+### 두 데이터 소스의 관계
+- `exercises` 테이블: 운동 목록 (운동명, 카테고리, 부위)
+- `strength_standards` 테이블: Strength Level 기준 데이터 (체중별, 성별, 레벨별 기준 무게)
+- 두 테이블은 운동명으로 연결됨 (`exercises.name` 또는 `exercises.name_en` ↔ `strength_standards`의 운동명)

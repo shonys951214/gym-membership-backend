@@ -16,6 +16,7 @@ import {
 	ApiOperation,
 	ApiResponse,
 	ApiBearerAuth,
+	ApiQuery,
 } from "@nestjs/swagger";
 import { MembersService } from './members.service';
 import { WorkoutRecordsService } from './workout-records.service';
@@ -41,16 +42,19 @@ import { JwtAuthGuard, JwtRolesGuard } from '../../common/guards';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../../common/enums';
 import { ApiResponseHelper } from '../../common/utils/api-response';
+import { ApiExceptions } from '../../common/exceptions';
 
 @ApiTags("members")
 @ApiBearerAuth("JWT-auth")
 @Controller('api/members')
 @UseGuards(JwtAuthGuard)
 export class MembersController {
-  constructor(
-    private readonly membersService: MembersService,
-    private readonly workoutRecordsService: WorkoutRecordsService,
-    private readonly ptSessionsService: PTSessionsService,
+	constructor(
+		private readonly membersService: MembersService,
+		private readonly workoutRecordsService: WorkoutRecordsService,
+		private readonly ptSessionsService: PTSessionsService,
+		private readonly workoutRoutinesService: WorkoutRoutinesService,
+	) {}
     private readonly workoutRoutinesService: WorkoutRoutinesService,
   ) {}
 
@@ -435,40 +439,110 @@ export class MembersController {
 		return ApiResponseHelper.success(null, '운동 기록 삭제 성공');
 	}
 
-	// TODO: 추후 구현 예정 - Strength Level 조회 API
-	/*
-	@Get(':id/workout-records/:recordId/strength-level')
-	@ApiOperation({ summary: '운동 기록의 Strength Level 조회', description: '특정 운동 기록의 Strength Level 정보를 조회합니다.' })
-	@ApiResponse({ status: 200, description: 'Strength Level 조회 성공' })
-	@ApiResponse({ status: 404, description: '운동 기록을 찾을 수 없습니다' })
-	async getWorkoutRecordStrengthLevel(
-		@Param('id') id: string,
-		@Param('recordId') recordId: string,
-	) {
-		const record = await this.workoutRecordsService.findOne(recordId, id);
-		
-		const response: any = {
-			oneRepMax: record.oneRepMax || null,
-			relativeStrength: record.relativeStrength || null,
-			strengthLevel: record.strengthLevel || null,
-			bodyWeight: null,
-		};
-
-		// 회원 정보에서 체중 조회
-		const member = await this.membersService.findOne(id);
-		if (member && member.weight) {
-			response.bodyWeight = member.weight;
-		}
-
-		return ApiResponseHelper.success(response, 'Strength Level 조회 성공');
+	@Get(':id/one-rep-max/major')
+	@ApiOperation({
+		summary: '주요 운동 1RM 조회',
+		description: '3대 운동(벤치프레스, 스쿼트, 데드리프트)의 최신/최고 1RM을 조회합니다. 기록이 없으면 대체 운동을 자동 탐색합니다.',
+	})
+	@ApiResponse({ status: 200, description: '주요 운동 1RM 조회 성공' })
+	async getMajorExercisesOneRepMax(@Param('id') id: string) {
+		const result = await this.workoutRecordsService.getMajorExercisesOneRepMax(id);
+		return ApiResponseHelper.success(result, '주요 운동 1RM 조회 성공');
 	}
-	*/
 
-	// TODO: 추후 구현 예정 - Strength Level 변화 추적 API
-	/*
+	@Get(':id/one-rep-max-estimate')
+	@ApiOperation({
+		summary: '1RM 추정 조회 (플랜 Phase 3)',
+		description: '빅3 운동(벤치프레스, 스쿼트, 데드리프트)의 최신/최고 1RM과 히스토리를 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: '1RM 추정 조회 성공' })
+	async getOneRepMaxEstimate(@Param('id') id: string) {
+		const result = await this.workoutRecordsService.getOneRepMaxEstimate(id);
+		return ApiResponseHelper.success(result, '1RM 추정 조회 성공');
+	}
+
+	@Get(':id/workout-records/one-rep-max-trend')
+	@ApiOperation({
+		summary: '1RM 추세 그래프 데이터 조회 (플랜 Phase 4)',
+		description: '운동별 1RM 변화 추세 데이터를 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: '1RM 추세 데이터 조회 성공' })
+	@ApiQuery({ name: 'exerciseName', required: false, description: '운동명 (선택적)' })
+	@ApiQuery({ name: 'startDate', required: false, description: '시작 날짜 (YYYY-MM-DD)' })
+	@ApiQuery({ name: 'endDate', required: false, description: '종료 날짜 (YYYY-MM-DD)' })
+	async getOneRepMaxTrend(
+		@Param('id') id: string,
+		@Query('exerciseName') exerciseName?: string,
+		@Query('startDate') startDate?: string,
+		@Query('endDate') endDate?: string,
+	) {
+		const result = await this.workoutRecordsService.getOneRepMaxTrend(
+			id,
+			exerciseName,
+			startDate,
+			endDate,
+		);
+		return ApiResponseHelper.success(result, '1RM 추세 데이터 조회 성공');
+	}
+
+	@Get(':id/workout-records/volume-trend')
+	@ApiOperation({
+		summary: '볼륨 추세 그래프 데이터 조회 (플랜 Phase 5)',
+		description: '날짜별 볼륨 추세 데이터를 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: '볼륨 추세 데이터 조회 성공' })
+	@ApiQuery({ name: 'startDate', required: false, description: '시작 날짜 (YYYY-MM-DD)' })
+	@ApiQuery({ name: 'endDate', required: false, description: '종료 날짜 (YYYY-MM-DD)' })
+	@ApiQuery({ name: 'bodyPart', required: false, description: '부위 필터 (선택적)' })
+	async getVolumeTrend(
+		@Param('id') id: string,
+		@Query('startDate') startDate?: string,
+		@Query('endDate') endDate?: string,
+		@Query('bodyPart') bodyPart?: string,
+	) {
+		const result = await this.workoutRecordsService.getVolumeTrend(
+			id,
+			startDate,
+			endDate,
+			bodyPart,
+		);
+		return ApiResponseHelper.success(result, '볼륨 추세 데이터 조회 성공');
+	}
+
+	@Get(':id/workout-records/trends')
+	@ApiOperation({
+		summary: '운동 기록 추세 데이터 조회',
+		description: '1RM 추세 또는 볼륨 추세 데이터를 조회합니다.',
+	})
+	@ApiResponse({ status: 200, description: '추세 데이터 조회 성공' })
+	@ApiQuery({ name: 'type', required: true, enum: ['one_rm', 'volume'], description: '추세 타입' })
+	@ApiQuery({ name: 'exerciseName', required: false, description: '운동명 (선택적)' })
+	@ApiQuery({ name: 'startDate', required: false, description: '시작 날짜 (YYYY-MM-DD)' })
+	@ApiQuery({ name: 'endDate', required: false, description: '종료 날짜 (YYYY-MM-DD)' })
+	async getTrends(
+		@Param('id') id: string,
+		@Query('type') type: 'one_rm' | 'volume',
+		@Query('exerciseName') exerciseName?: string,
+		@Query('startDate') startDate?: string,
+		@Query('endDate') endDate?: string,
+	) {
+		const result = await this.workoutRecordsService.getTrends(
+			id,
+			type,
+			exerciseName,
+			startDate,
+			endDate,
+		);
+		return ApiResponseHelper.success(result, '추세 데이터 조회 성공');
+	}
+
 	@Get(':id/strength-progress')
-	@ApiOperation({ summary: '회원의 운동별 Strength Level 변화 추적', description: '회원의 운동별 Strength Level 변화를 조회합니다.' })
+	@ApiOperation({
+		summary: '회원의 운동별 Strength Level 변화 추적',
+		description: '회원의 운동별 Strength Level 변화를 조회합니다.',
+	})
 	@ApiResponse({ status: 200, description: 'Strength Level 변화 추적 조회 성공' })
+	@ApiQuery({ name: 'exerciseName', required: false, description: '운동명 (선택적)' })
 	async getStrengthProgress(
 		@Param('id') id: string,
 		@Query('exerciseName') exerciseName?: string,
@@ -476,7 +550,32 @@ export class MembersController {
 		const progress = await this.workoutRecordsService.getStrengthProgress(id, exerciseName);
 		return ApiResponseHelper.success(progress, 'Strength Level 변화 추적 조회 성공');
 	}
-	*/
+
+	@Get(':id/workout-routines/suggest-weight')
+	@ApiOperation({
+		summary: '운동별 무게 제안 (플랜 Phase 7)',
+		description: 'Strength Level 기반으로 운동별 권장 무게를 제안합니다.',
+	})
+	@ApiResponse({ status: 200, description: '무게 제안 조회 성공' })
+	@ApiQuery({ name: 'exerciseName', required: true, description: '운동명' })
+	@ApiQuery({ name: 'reps', required: true, description: '반복 횟수' })
+	async suggestWeight(
+		@Param('id') id: string,
+		@Query('exerciseName') exerciseName: string,
+		@Query('reps') reps: string,
+	) {
+		const repsNum = parseInt(reps, 10);
+		if (isNaN(repsNum) || repsNum <= 0) {
+			throw ApiExceptions.badRequest('유효한 반복 횟수를 입력해주세요.');
+		}
+
+		const result = await this.workoutRoutinesService.suggestWeightForExercise(
+			id,
+			exerciseName,
+			repsNum,
+		);
+		return ApiResponseHelper.success(result, '무게 제안 조회 성공');
+	}
 
 	// 1차피드백: PT 세션
 	@Get(':id/pt-sessions')

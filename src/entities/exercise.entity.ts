@@ -18,14 +18,15 @@ export enum ExerciseCategory {
 @Index('idx_exercises_name', ['name'])
 @Index('idx_exercises_name_en', ['nameEn'])
 @Index('idx_exercises_category', ['category'])
+@Index('idx_exercises_body_part', ['bodyPart'])
 @Index('idx_exercises_is_active', ['isActive'])
 @Entity('exercises')
 export class Exercise {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;
 
-	@Column({ length: 255 })
-	name: string; // "벤치프레스", "스쿼트" 등
+	@Column({ length: 255, nullable: true })
+	name?: string; // "벤치프레스", "스쿼트" 등 (한글명이 없으면 NULL)
 
 	@Column({ length: 255, name: 'name_en' })
 	nameEn: string; // "Bench Press", "Squat" 등
@@ -36,6 +37,9 @@ export class Exercise {
 		default: ExerciseCategory.FULL_BODY,
 	})
 	category: ExerciseCategory; // "UPPER", "LOWER", "FULL_BODY"
+
+	@Column({ length: 50, name: 'body_part', nullable: true })
+	bodyPart?: string; // "가슴", "등", "어깨", "팔", "하체" 등
 
 	@Column({ length: 50, default: 'kg' })
 	unit: string; // "kg", "lb" 등

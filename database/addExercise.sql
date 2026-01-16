@@ -1,0 +1,92 @@
+-- ============================================
+-- addExercise.sql - Strength Level 기준 데이터 추가 템플릿
+-- ============================================
+-- 
+-- 이 파일은 StrengthLevel.com에서 수집한 운동별 Strength Level 기준 데이터를
+-- strength_standards 테이블에 삽입하기 위한 SQL 템플릿입니다.
+--
+-- 사용 방법:
+-- 1. StrengthLevel.com에서 운동별 기준 데이터 수집
+-- 2. 아래 템플릿을 복사하여 실제 데이터로 채우기
+-- 3. PostgreSQL/DBeaver에서 실행
+--
+-- 참고 문서:
+-- - docs/MANUAL_DATA_COLLECTION_GUIDE.md (전체 가이드)
+-- - docs/BIG3_STRENGTH_LEVEL_COLLECTION.md (빅3 전용 가이드)
+--
+-- ============================================
+
+-- ============================================
+-- 벤치프레스 (Bench Press - Powerlifting) Strength Standards
+-- ============================================
+-- 주의: 벤치프레스 데이터는 별도 파일로 분리되었습니다.
+-- - database/bench_press_male_standards.sql (남성 데이터)
+-- - database/bench_press_female_standards.sql (여성 데이터)
+
+
+-- ============================================
+-- 스쿼트 (Barbell Squat) Strength Standards
+-- ============================================
+-- 데이터 수집: https://strengthlevel.com/strength-standards/squat
+--
+-- 주의: 데이터베이스에 'Barbell Squat'로 저장되어 있습니다.
+-- 한글명 '스쿼트' 또는 영문명 'Barbell Squat'로 찾습니다.
+--
+-- 남성 데이터는 별도 파일로 분리되었습니다.
+-- - database/squat_male_standards.sql (남성 데이터)
+--
+-- 템플릿 (복사하여 사용):
+-- INSERT INTO strength_standards (id, exercise_id, standard_type, bodyweight_min, bodyweight_max, age_min, age_max, gender, level, weight_kg, created_at, updated_at)
+-- SELECT gen_random_uuid(), e.id, 'BODYWEIGHT', 50.0, 60.0, NULL, NULL, 'MALE', 'BEGINNER', 50.0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+-- FROM exercises e 
+-- WHERE e.name = '스쿼트' OR e.name_en = 'Barbell Squat'
+-- ON CONFLICT DO NOTHING;
+--
+
+
+-- ============================================
+-- 데드리프트 (Barbell Deadlift) Strength Standards
+-- ============================================
+-- 데이터 수집: https://strengthlevel.com/strength-standards/deadlift
+--
+-- 주의: 데이터베이스에 'Barbell Deadlift'로 저장되어 있습니다.
+-- 한글명 '데드리프트' 또는 영문명 'Barbell Deadlift'로 찾습니다.
+--
+-- 템플릿 (복사하여 사용):
+-- INSERT INTO strength_standards (id, exercise_id, standard_type, bodyweight_min, bodyweight_max, age_min, age_max, gender, level, weight_kg, created_at, updated_at)
+-- SELECT gen_random_uuid(), e.id, 'BODYWEIGHT', 50.0, 60.0, NULL, NULL, 'MALE', 'BEGINNER', 60.0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+-- FROM exercises e 
+-- WHERE e.name = '데드리프트' OR e.name_en = 'Barbell Deadlift'
+-- ON CONFLICT DO NOTHING;
+--
+
+
+-- ============================================
+-- 기타 운동 추가 템플릿
+-- ============================================
+-- 
+-- 새로운 운동 추가 시 아래 템플릿 사용:
+--
+-- -- ============================================
+-- -- 운동명 (영문명) Strength Standards
+-- -- ============================================
+-- -- 데이터 수집: [StrengthLevel.com URL]
+-- --
+-- -- 주의: 데이터베이스에 '[영문명]'로 저장되어 있습니다.
+-- -- 한글명 '[한글명]' 또는 영문명 '[영문명]'로 찾습니다.
+-- --
+-- 
+-- -- 체중별 데이터 (BODYWEIGHT)
+-- INSERT INTO strength_standards (id, exercise_id, standard_type, bodyweight_min, bodyweight_max, age_min, age_max, gender, level, weight_kg, created_at, updated_at)
+-- SELECT gen_random_uuid(), e.id, 'BODYWEIGHT', 50.0, 60.0, NULL, NULL, 'MALE', 'BEGINNER', 50.0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+-- FROM exercises e 
+-- WHERE e.name = '[한글명]' OR e.name_en = '[영문명]'
+-- ON CONFLICT DO NOTHING;
+--
+-- -- 나이별 데이터 (AGE)
+-- INSERT INTO strength_standards (id, exercise_id, standard_type, bodyweight_min, bodyweight_max, age_min, age_max, gender, level, weight_kg, created_at, updated_at)
+-- SELECT gen_random_uuid(), e.id, 'AGE', NULL, NULL, 15, 19, 'MALE', 'BEGINNER', 50.0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+-- FROM exercises e 
+-- WHERE e.name = '[한글명]' OR e.name_en = '[영문명]'
+-- ON CONFLICT DO NOTHING;
+--

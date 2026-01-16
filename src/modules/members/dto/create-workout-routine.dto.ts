@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsArray, ValidateNested, IsString, IsNumber, IsOptional, Min, IsEnum } from 'class-validator';
+import { IsDateString, IsArray, ValidateNested, IsString, IsNumber, IsOptional, Min, IsEnum, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ExerciseDto {
@@ -130,5 +130,14 @@ export class CreateWorkoutRoutineDto {
 	})
 	@IsEnum(['EASY', 'MEDIUM', 'HARD'])
 	difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+
+	@ApiPropertyOptional({
+		description: 'Strength Level 기반 무게 자동 제안 여부',
+		example: false,
+		default: false,
+	})
+	@IsOptional()
+	@IsBoolean()
+	suggestWeights?: boolean;
 }
 

@@ -21,6 +21,7 @@ import { WorkoutRoutine } from "../../entities/workout-routine.entity";
 import { Exercise } from "../../entities/exercise.entity";
 import { StrengthStandard } from "../../entities/strength-standard.entity";
 import { AssessmentsModule } from "../assessments/assessments.module";
+import { StrengthLevelEvaluator } from "../../common/utils/strength-level-evaluator";
 
 @Module({
 	imports: [
@@ -36,6 +37,7 @@ import { AssessmentsModule } from "../assessments/assessments.module";
 			WorkoutRoutine,
 			Exercise,
 			StrengthStandard,
+			WorkoutRecord,
 		]),
 		AssessmentsModule,
 	],
@@ -46,7 +48,7 @@ import { AssessmentsModule } from "../assessments/assessments.module";
 		MemberAnalyticsController,
 		WorkoutRoutinesController,
 	],
-	providers: [MembersService, WorkoutRecordsService, PTSessionsService, WorkoutRoutinesService],
+	providers: [MembersService, WorkoutRecordsService, PTSessionsService, WorkoutRoutinesService, StrengthLevelEvaluator],
 	exports: [MembersService, WorkoutRecordsService, PTSessionsService, WorkoutRoutinesService],
 })
 export class MembersModule {}

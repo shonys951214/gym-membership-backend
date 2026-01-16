@@ -1,0 +1,14 @@
+# StrengthLevel.com 데이터 수집 스크립트 필수 라이브러리
+# 설치 방법: pip install -r scripts/requirements_scraping.txt
+
+# 웹 브라우저 자동화
+selenium>=4.0.0
+
+# HTML 파싱
+beautifulsoup4>=4.9.0
+
+# ChromeDriver 자동 관리
+webdriver-manager>=3.8.0
+
+# 추가 유틸리티 (선택적)
+lxml>=4.6.0  # BeautifulSoup의 빠른 파서 (선택적)

@@ -15,7 +15,9 @@ import { Gender, StrengthLevel } from '../common/enums';
 @Index('idx_strength_standards_gender', ['gender'])
 @Index('idx_strength_standards_level', ['level'])
 @Index('idx_strength_standards_bodyweight', ['bodyweightMin', 'bodyweightMax'])
-@Index('idx_strength_standards_lookup', ['exerciseId', 'gender', 'level', 'bodyweightMin', 'bodyweightMax'])
+@Index('idx_strength_standards_standard_type', ['standardType'])
+@Index('idx_strength_standards_age', ['ageMin', 'ageMax'])
+@Index('idx_strength_standards_lookup', ['exerciseId', 'gender', 'level', 'standardType', 'bodyweightMin', 'bodyweightMax', 'ageMin', 'ageMax'])
 @Entity('strength_standards')
 export class StrengthStandard {
 	@PrimaryGeneratedColumn('uuid')
@@ -30,11 +32,20 @@ export class StrengthStandard {
 	@JoinColumn({ name: 'exercise_id' })
 	exercise: Exercise;
 
-	@Column({ type: 'float', name: 'bodyweight_min' })
-	bodyweightMin: number; // 체중 최소값 (kg)
+	@Column({ type: 'varchar', length: 20, name: 'standard_type', default: 'BODYWEIGHT' })
+	standardType: 'BODYWEIGHT' | 'AGE'; // 기준 타입: BODYWEIGHT(체중별), AGE(나이별)
 
-	@Column({ type: 'float', name: 'bodyweight_max' })
-	bodyweightMax: number; // 체중 최대값 (kg)
+	@Column({ type: 'float', name: 'bodyweight_min', nullable: true })
+	bodyweightMin?: number; // 체중 최소값 (kg) - 나이별 데이터는 NULL
+
+	@Column({ type: 'float', name: 'bodyweight_max', nullable: true })
+	bodyweightMax?: number; // 체중 최대값 (kg) - 나이별 데이터는 NULL
+
+	@Column({ type: 'int', name: 'age_min', nullable: true })
+	ageMin?: number; // 나이 최소값 - 체중별 데이터는 NULL
+
+	@Column({ type: 'int', name: 'age_max', nullable: true })
+	ageMax?: number; // 나이 최대값 - 체중별 데이터는 NULL
 
 	@Column({
 		type: 'enum',

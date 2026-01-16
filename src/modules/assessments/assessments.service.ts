@@ -727,6 +727,7 @@ export class AssessmentsService {
 			oneRepMaxResult.oneRepMax,
 			member.weight,
 			member.gender,
+			member.age, // 나이 파라미터 추가
 		);
 
 		return {
